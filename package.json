@@ -1,7 +1,7 @@
 {
-  "name": "vusd-app",
+  "name": "vultd-gui",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -53,5 +53,6 @@
     "mac": {
       "target": "dmg"
     }
-  }
+  },
+  "description": "VULTD Wallet — Bitcoin-backed private stablecoin desktop app"
 }
