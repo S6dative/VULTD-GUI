@@ -1,19 +1,9 @@
 @import "tailwindcss";
-
-@theme {
-  --color-bg: #0a0a0b;
-  --color-surface: #111113;
-  --color-border: #1e1e22;
-  --color-accent: #f5a623;
-  --color-green: #22c55e;
-  --color-red: #ef4444;
-  --color-muted: #6b7280;
-  --font-display: 'Space Mono', monospace;
-  --font-body: 'DM Sans', sans-serif;
-}
-
-body {
-  background: var(--color-bg);
-  color: #e5e7eb;
-  font-family: var(--font-body);
-}
+body { background:#111111; color:#fafafa; font-family:'DM Sans',sans-serif; font-size:14px; }
+input,select { font-family:inherit; font-size:14px; }
+::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:#111} ::-webkit-scrollbar-thumb{background:#262626;border-radius:3px}
+.mono{font-family:'Space Mono',monospace}
+.text-success{color:#22c55e} .text-warning{color:#f59e0b} .text-danger{color:#ef4444} .text-btc{color:#f7931a}
+.bg-success{background:#22c55e} .bg-warning{background:#f59e0b} .bg-danger{background:#ef4444}
+.animate-spin{animation:spin 1s linear infinite} .animate-pulse{animation:pulse 2s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
