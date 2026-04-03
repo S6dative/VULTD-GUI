@@ -14,8 +14,17 @@ export default function MintRepay() {
 
   useEffect(() => {
     bridge.readVaults().then(data => {
-      const arr = Array.isArray(data) ? data : Object.values(data || {})
-      setOpenVaults(arr.filter(v => v.state === 'Open'))
+      const entries = Array.isArray(data) ? data : Object.entries(data || {})
+      const normalized = entries.map(([id, v]) => ({
+        id: v.vault_id || id,
+        state: v.state || 'Unknown',
+        collateralSats: v.locked_btc || 0,
+        debt: v.debt_vusd || 0,
+        health: v.locked_btc && v.debt_vusd > 0
+          ? Math.round((v.locked_btc / 100000000 * 85000) / v.debt_vusd * 100)
+          : 999,
+      }))
+      setOpenVaults(normalized.filter(v => v.state === 'Open'))
     }).catch(() => {})
   }, [])
   const vault = openVaults.find(v=>v.id===vaultId)

@@ -12,11 +12,17 @@ export default function Vaults() {
 
   useEffect(() => {
     bridge.readVaults().then(data => {
-      if (Array.isArray(data)) setVaults(data)
-      else if (data && typeof data === 'object') {
-        // vaults.json may be object keyed by id
-        setVaults(Object.values(data))
-      }
+      const raw = Array.isArray(data) ? data : Object.entries(data || {})
+      const normalized = raw.map(([id, v]) => ({
+        id: v.vault_id || id,
+        state: v.state || 'Unknown',
+        collateralSats: v.locked_btc || 0,
+        debt: v.debt_vusd || 0,
+        health: v.locked_btc && v.debt_vusd > 0
+          ? Math.round((v.locked_btc / 100000000 * 85000) / v.debt_vusd * 100)
+          : v.state === 'Open' ? 999 : 0,
+      }))
+      setVaults(normalized)
     }).catch(() => {}).finally(() => setLoadingVaults(false))
   }, [])
 
