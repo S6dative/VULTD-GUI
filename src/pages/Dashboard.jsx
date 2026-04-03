@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Bitcoin, DollarSign, TrendingUp, RefreshCw, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Lock, Unlock, HelpCircle, Zap } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
+import { bridge } from '../bridge/vusd'
 
 const formatUsd = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const formatSats = n => n>=100000000?(n/100000000).toFixed(8)+' BTC':n.toLocaleString()+' sats'
@@ -65,7 +66,17 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchPrice() }, [])
+  useEffect(() => {
+    fetchPrice()
+    bridge.btcBalance().then(bal => {
+      if (typeof bal === 'number') {
+        const sats = Math.round(bal * 100000000)
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.btcSats = sats
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+      }
+    }).catch(() => {})
+  }, [])
 
   const btcSats = wallet?.btcSats || 0
   const vusdBalance = wallet?.vusdBalance || 0
@@ -73,11 +84,19 @@ export default function Dashboard() {
 
   const handleClaim = async () => {
     setClaiming(true)
-    await new Promise(r => setTimeout(r, 800))
-    const ok = claimFaucet()
-    setClaimMsg(ok ? { ok: true, text: '✅ 10,000 sats claimed!' } : { ok: false, text: 'Daily limit reached (10/10)' })
+    try {
+      let addr = wallet?.address
+      if (!addr) {
+        const res = await bridge.btcAddress()
+        addr = res?.output || res
+      }
+      const ok = await claimFaucet(addr)
+      setClaimMsg(ok ? { ok: true, text: '10,000 sats sent to your wallet!' } : { ok: false, text: 'Daily limit reached (10/10)' })
+    } catch (e) {
+      setClaimMsg({ ok: false, text: 'Faucet error: ' + (e.message || 'unknown') })
+    }
     setClaiming(false)
-    setTimeout(() => setClaimMsg(null), 3000)
+    setTimeout(() => setClaimMsg(null), 4000)
   }
 
   return (
