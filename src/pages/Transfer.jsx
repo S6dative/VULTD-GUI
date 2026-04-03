@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { useApp } from '../contexts/AppContext'
 import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react'
-import { MOCK_TXS, MOCK_STEALTH, formatUsd, formatSats, timeAgo } from '../data'
-
-const vusdBalance = 3250.50
+import { formatUsd, formatSats, timeAgo } from '../data'
 
 export default function Transfer() {
+  const { wallet, network } = useApp()
+  const vusdBalance = wallet?.vusdBalance || 0
   const [tab, setTab] = useState('send')
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
@@ -24,11 +25,11 @@ export default function Transfer() {
   }
 
   const copy = () => {
-    navigator.clipboard?.writeText(MOCK_STEALTH)
+    navigator.clipboard?.writeText(wallet?.vusdAddress || '')
     setCopied(true); setTimeout(()=>setCopied(false),2000)
   }
 
-  const txHistory = MOCK_TXS.filter(t=>t.type==='send'||t.type==='receive')
+  const txHistory = []  // populated from vusd CLI in production
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:24,maxWidth:640}}>
@@ -109,7 +110,7 @@ export default function Transfer() {
           </div>
           <div style={{background:'#111',border:'1px solid #262626',borderRadius:8,padding:16,marginBottom:16}}>
             <div style={{fontSize:11,color:'#737373',marginBottom:8,fontFamily:'Space Mono'}}>YOUR VUSD ADDRESS</div>
-            <div style={{fontFamily:'Space Mono',fontSize:10,color:'#fafafa',wordBreak:'break-all',lineHeight:1.8}}>{MOCK_STEALTH}</div>
+            <div style={{fontFamily:'Space Mono',fontSize:10,color:'#fafafa',wordBreak:'break-all',lineHeight:1.8}}>{wallet?.vusdAddress || 'Generate an address using the vusd CLI: vusd generate-address'}</div>
           </div>
           <div style={{display:'flex',gap:12}}>
             <button onClick={copy}
@@ -123,7 +124,12 @@ export default function Transfer() {
       {/* History */}
       <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
         <div style={{fontSize:13,color:'#737373',marginBottom:16}}>Transfer History</div>
-        {txHistory.map(tx=>(
+        {txHistory.length === 0 ? (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'24px 0',color:'#737373',textAlign:'center'}}>
+            <div style={{fontSize:13,marginBottom:4}}>No transfers yet</div>
+            <div style={{fontSize:12}}>Your Lightning VUSD transfers will appear here</div>
+          </div>
+        ) : txHistory.map(tx=>(
           <div key={tx.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px',borderRadius:8,background:'#222',marginBottom:8}}>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <div style={{width:36,height:36,borderRadius:'50%',background:'#2a2a2a',display:'flex',alignItems:'center',justifyContent:'center'}}>

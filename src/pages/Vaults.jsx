@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Plus, Lock, Unlock, MoreHorizontal, ExternalLink } from 'lucide-react'
-import { MOCK_VAULTS, BTC_PRICE, formatUsd, formatSats, satsToUsd, truncateVaultId, healthColor } from '../data'
+import { BTC_PRICE, formatUsd, formatSats, satsToUsd, truncateVaultId, healthColor } from '../data'
 
 export default function Vaults() {
   const [filter, setFilter] = useState('Open')
   const [showModal, setShowModal] = useState(false)
   const [sats, setSats] = useState('')
-  const [vaults, setVaults] = useState(MOCK_VAULTS)
+  const [vaults, setVaults] = useState([])
 
   const tabs = ['Open','Repaid','Closed']
   const counts = tabs.reduce((a,t)=>({...a,[t]:vaults.filter(v=>v.state===t).length}),{})

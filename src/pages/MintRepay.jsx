@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Coins, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react'
-import { MOCK_VAULTS, BTC_PRICE, formatUsd, formatSats, satsToUsd, truncateVaultId, healthColor } from '../data'
+import { BTC_PRICE, formatUsd, satsToUsd, truncateVaultId, healthColor } from '../data'
 
 export default function MintRepay() {
   const [vaultId, setVaultId] = useState('')
@@ -9,8 +9,8 @@ export default function MintRepay() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
 
-  const openVaults = MOCK_VAULTS.filter(v=>v.state==='Open')
-  const vault = MOCK_VAULTS.find(v=>v.id===vaultId)
+  const openVaults = []  // populated from vusd CLI in production
+  const vault = openVaults.find(v=>v.id===vaultId)
   const collUsd = vault ? satsToUsd(vault.collateralSats, BTC_PRICE) : 0
   const maxMint = vault ? Math.max(0, Math.floor(collUsd/1.5 - vault.debt)) : 0
 
