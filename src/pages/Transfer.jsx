@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../contexts/AppContext'
+import { bridge } from '../bridge/vusd'
 import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react'
 import { formatUsd, formatSats, timeAgo } from '../data'
 
@@ -14,18 +15,40 @@ export default function Transfer() {
   const [copied, setCopied] = useState(false)
 
   const sendValue = parseFloat(amount)||0
+  const [vusdAddr, setVusdAddr] = useState(wallet?.vusdAddress || '')
+  const [genning, setGenning] = useState(false)
+
+  const generateAddress = async () => {
+    setGenning(true)
+    try {
+      const res = await bridge.generateAddress()
+      const addr = res?.address || res?.output || ''
+      setVusdAddr(addr)
+      // persist to wallet
+      const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+      w.vusdAddress = addr
+      localStorage.setItem('vultd-wallet', JSON.stringify(w))
+    } catch (e) { console.error('generate-address', e) }
+    setGenning(false)
+  }
+
   const isValid = sendValue>0 && sendValue<=vusdBalance && to.startsWith('vusd:')
 
   const handleSend = async () => {
     if (!isValid) return
     setSending(true); setStatus(null)
-    await new Promise(r=>setTimeout(r,1200))
-    setStatus({ok:true, msg:'VUSD sent successfully over Lightning!'})
-    setTo(''); setAmount(''); setSending(false)
+    try {
+      await bridge.send(to, sendValue)
+      setStatus({ ok: true, msg: 'VUSD sent successfully over Lightning!' })
+      setTo(''); setAmount('')
+    } catch (e) {
+      setStatus({ ok: false, msg: 'Send failed: ' + (e.message || 'unknown error') })
+    }
+    setSending(false)
   }
 
   const copy = () => {
-    navigator.clipboard?.writeText(wallet?.vusdAddress || '')
+    navigator.clipboard?.writeText(vusdAddr || '')
     setCopied(true); setTimeout(()=>setCopied(false),2000)
   }
 
@@ -110,9 +133,12 @@ export default function Transfer() {
           </div>
           <div style={{background:'#111',border:'1px solid #262626',borderRadius:8,padding:16,marginBottom:16}}>
             <div style={{fontSize:11,color:'#737373',marginBottom:8,fontFamily:'Space Mono'}}>YOUR VUSD ADDRESS</div>
-            <div style={{fontFamily:'Space Mono',fontSize:10,color:'#fafafa',wordBreak:'break-all',lineHeight:1.8}}>{wallet?.vusdAddress || 'Generate an address using the vusd CLI: vusd generate-address'}</div>
+            <div style={{fontFamily:'Space Mono',fontSize:10,color:'#fafafa',wordBreak:'break-all',lineHeight:1.8}}>{vusdAddr || 'No address yet — click Generate below'}</div>
           </div>
           <div style={{display:'flex',gap:12}}>
+            <button onClick={generateAddress} disabled={genning} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px',borderRadius:8,background:'var(--card2)',color:'var(--fg-dim)',fontWeight:600,border:'1px solid var(--border)',cursor:genning?'not-allowed':'pointer',fontSize:14}}>
+              {genning ? 'Generating...' : 'Generate New'}
+            </button>
             <button onClick={copy}
               style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px',borderRadius:8,background:'#fafafa',color:'#111',fontWeight:600,border:'none',cursor:'pointer',fontSize:14}}>
               {copied?<><Check size={14}/> Copied!</>:<><Copy size={14}/> Copy Address</>}

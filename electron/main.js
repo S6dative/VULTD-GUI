@@ -1,4 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
+const fs = require('fs')
+const os = require('os')
 const { spawn } = require('child_process')
 const path = require('path')
 
@@ -41,6 +43,18 @@ ipcMain.handle('faucet', async (_, address) => run(BCLI, [...SARGS, 'sendtoaddre
 ipcMain.handle('btc-balance', async () => run(BCLI, [...SARGS, 'getbalance']))
 ipcMain.handle('btc-address', async () => run(BCLI, [...SARGS, 'getnewaddress']))
 
+
+// read vaults.json directly
+ipcMain.handle('read-vaults', async () => {
+  const p = path.join(os.homedir(), '.vusd', 'vaults.json')
+  try {
+    const raw = fs.readFileSync(p, 'utf8')
+    return JSON.parse(raw)
+  } catch { return [] }
+})
+
+// read vusd balance from balance command output
+ipcMain.handle('vusd-balance', async () => run(VUSD_BIN, ['balance'], VENV))
 
 app.whenReady().then(createWindow)
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { bridge } from '../bridge/vusd'
 import { Plus, Lock, Unlock, MoreHorizontal, ExternalLink } from 'lucide-react'
 import { BTC_PRICE, formatUsd, formatSats, satsToUsd, truncateVaultId, healthColor } from '../data'
 
@@ -7,20 +8,38 @@ export default function Vaults() {
   const [showModal, setShowModal] = useState(false)
   const [sats, setSats] = useState('')
   const [vaults, setVaults] = useState([])
+  const [loadingVaults, setLoadingVaults] = useState(true)
+
+  useEffect(() => {
+    bridge.readVaults().then(data => {
+      if (Array.isArray(data)) setVaults(data)
+      else if (data && typeof data === 'object') {
+        // vaults.json may be object keyed by id
+        setVaults(Object.values(data))
+      }
+    }).catch(() => {}).finally(() => setLoadingVaults(false))
+  }, [])
 
   const tabs = ['Open','Repaid','Closed']
   const counts = tabs.reduce((a,t)=>({...a,[t]:vaults.filter(v=>v.state===t).length}),{})
   const filtered = vaults.filter(v=>v.state===filter)
 
-  const openVault = () => {
+  const [opening, setOpening] = useState(false)
+  const [openError, setOpenError] = useState(null)
+
+  const openVault = async () => {
     if (!sats) return
-    const newVault = {
-      id: 'vault:'+Array(64).fill(0).map(()=>Math.floor(Math.random()*16).toString(16)).join(''),
-      state:'Open', collateralSats:parseInt(sats),
-      debt:0, health:999
-    }
-    setVaults([...vaults, newVault])
-    setShowModal(false); setSats('')
+    setOpening(true); setOpenError(null)
+    try {
+      await bridge.openVault(parseInt(sats))
+      // reload vaults after opening
+      const data = await bridge.readVaults()
+      if (Array.isArray(data)) setVaults(data)
+      else if (data && typeof data === 'object') setVaults(Object.values(data))
+      setShowModal(false); setSats('')
+    } catch (e) {
+      setOpenError(e.message || 'Failed to open vault')
+    } finally { setOpening(false) }
   }
 
   return (
@@ -47,9 +66,10 @@ export default function Vaults() {
             <div style={{fontSize:12,color:'#737373',marginBottom:20}}>
               {sats ? `≈ ${formatUsd(satsToUsd(parseInt(sats)||0,BTC_PRICE))} · Min collateral ratio: 150%` : 'Min collateral ratio: 150%'}
             </div>
+            {openError && <div style={{marginBottom:12,padding:'8px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'var(--danger)',fontSize:13}}>{openError}</div>}
             <div style={{display:'flex',gap:12}}>
-              <button onClick={()=>setShowModal(false)} style={{flex:1,padding:'10px',borderRadius:8,background:'#222',color:'#a3a3a3',border:'1px solid #262626',cursor:'pointer',fontSize:14}}>Cancel</button>
-              <button onClick={openVault} style={{flex:1,padding:'10px',borderRadius:8,background:'#fafafa',color:'#111',fontWeight:600,border:'none',cursor:'pointer',fontSize:14}}>Open Vault</button>
+              <button onClick={()=>{setShowModal(false);setOpenError(null)}} style={{flex:1,padding:'10px',borderRadius:8,background:'#222',color:'#a3a3a3',border:'1px solid #262626',cursor:'pointer',fontSize:14}}>Cancel</button>
+              <button onClick={openVault} disabled={opening} style={{flex:1,padding:'10px',borderRadius:8,background:opening?'#404040':'#fafafa',color:opening?'#737373':'#111',fontWeight:600,border:'none',cursor:opening?'not-allowed':'pointer',fontSize:14}}>{opening?'Opening...':'Open Vault'}</button>
             </div>
           </div>
         </div>

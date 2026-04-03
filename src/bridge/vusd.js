@@ -1,27 +1,38 @@
-async function runVusd(args) {
-  if (window.electron?.ipcRenderer) {
-    return window.electron.ipcRenderer.invoke('vusd', args)
+const isElectron = !!window.electron
+
+function mock(channel, args) {
+  if (channel === 'btcBalance') return Promise.resolve(0)
+  if (channel === 'vusdBalance') return Promise.resolve({ balance: 0 })
+  if (channel === 'readVaults') return Promise.resolve([])
+  if (channel === 'vusd') {
+    const cmd = args?.[0]
+    if (cmd === 'balance') return Promise.resolve({ balance: 0, outputs: 0 })
+    if (cmd === 'generate-address') return Promise.resolve({ address: '' })
+    if (cmd === 'oracle') return Promise.resolve({ price: 85000, valid_sigs: 7 })
   }
-  return mockResponse(args)
+  return Promise.resolve({})
 }
 
-function mockResponse(args) {
-  const cmd = args[0]
-  if (cmd === 'balance') return { balance: 15.00, outputs: 3, btc_price: 66827 }
-  if (cmd === 'oracle') return { price: 66827, valid_sigs: 7 }
-  if (cmd === 'generate-address') return { address: 'vusd:620feb5d...:ba53841e...' }
-  return {}
+async function ipc(channel, ...args) {
+  if (!isElectron) return mock(channel, args[0])
+  try { return await window.electron[channel]?.(...args) }
+  catch (e) { console.error('IPC', channel, e); throw e }
 }
 
-export const vusd = {
-  balance: () => runVusd(['balance']),
-  oracle: () => runVusd(['oracle']),
-  send: (to, amount) => runVusd(['send', '--to', to, '--amount', String(amount)]),
-  receive: () => runVusd(['receive']),
-  openVault: (sats) => runVusd(['open-vault', '--collateral', String(sats)]),
-  mint: (vault, amount) => runVusd(['mint', '--vault', vault, '--amount', String(amount)]),
-  repay: (vault, amount) => runVusd(['repay', '--vault', vault, '--amount', String(amount)]),
-  closeVault: (vault) => runVusd(['close', '--vault', vault]),
-  health: (vault) => runVusd(['health', '--vault', vault]),
-  generateAddress: () => runVusd(['generate-address']),
+export const bridge = {
+  btcBalance:      ()              => ipc('btcBalance'),
+  btcAddress:      ()              => ipc('btcAddress'),
+  vusdBalance:     ()              => ipc('vusdBalance'),
+  readVaults:      ()              => ipc('readVaults'),
+  faucet:          (addr)          => ipc('faucet', addr),
+  oracle:          ()              => ipc('vusd', ['oracle']),
+  generateAddress: ()              => ipc('vusd', ['generate-address']),
+  openVault:       (sats)          => ipc('vusd', ['open-vault', '--collateral', String(sats)]),
+  mint:            (vault, amount) => ipc('vusd', ['mint', '--vault', vault, '--amount', String(amount)]),
+  repay:           (vault, amount) => ipc('vusd', ['repay', '--vault', vault, '--amount', String(amount)]),
+  closeVault:      (vault)         => ipc('vusd', ['close', '--vault', vault]),
+  health:          (vault)         => ipc('vusd', ['health', '--vault', vault]),
+  send:            (to, amount)    => ipc('vusd', ['send', '--to', to, '--amount', String(amount)]),
 }
+
+export const vusd = bridge

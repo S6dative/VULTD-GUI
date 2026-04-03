@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { bridge } from '../bridge/vusd'
 import { Coins, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react'
 import { BTC_PRICE, formatUsd, satsToUsd, truncateVaultId, healthColor } from '../data'
 
@@ -9,7 +10,14 @@ export default function MintRepay() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
 
-  const openVaults = []  // populated from vusd CLI in production
+  const [openVaults, setOpenVaults] = useState([])
+
+  useEffect(() => {
+    bridge.readVaults().then(data => {
+      const arr = Array.isArray(data) ? data : Object.values(data || {})
+      setOpenVaults(arr.filter(v => v.state === 'Open'))
+    }).catch(() => {})
+  }, [])
   const vault = openVaults.find(v=>v.id===vaultId)
   const collUsd = vault ? satsToUsd(vault.collateralSats, BTC_PRICE) : 0
   const maxMint = vault ? Math.max(0, Math.floor(collUsd/1.5 - vault.debt)) : 0
@@ -17,9 +25,15 @@ export default function MintRepay() {
   const handle = async () => {
     if (!vault||!amount) return
     setLoading(true); setMsg(null)
-    await new Promise(r=>setTimeout(r,800))
-    setMsg({ok:true, text: tab==='mint' ? `Minted ${formatUsd(parseFloat(amount))} VUSD` : `Repaid ${formatUsd(parseFloat(amount))} VUSD`})
-    setAmount(''); setLoading(false)
+    try {
+      if (tab === 'mint') await bridge.mint(vault.id, parseFloat(amount))
+      else await bridge.repay(vault.id, parseFloat(amount))
+      setMsg({ ok: true, text: tab==='mint' ? 'Minted '+formatUsd(parseFloat(amount))+' VUSD' : 'Repaid '+formatUsd(parseFloat(amount))+' VUSD' })
+      setAmount('')
+    } catch (e) {
+      setMsg({ ok: false, text: (e.message || 'Transaction failed') })
+    }
+    setLoading(false)
   }
 
   return (
