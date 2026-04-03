@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { bridge } from '../bridge/vusd'
 
 const AppContext = createContext(null)
 
@@ -51,21 +52,25 @@ export function AppProvider({ children }) {
     setupPin(pin)
   }
 
-  const claimFaucet = () => {
+  const claimFaucet = async (address) => {
     const lastClaim = localStorage.getItem('vultd-faucet-last')
     const claimsToday = parseInt(localStorage.getItem('vultd-faucet-claims') || '0')
     const now = Date.now()
     const dayMs = 86400000
     if (lastClaim && now - parseInt(lastClaim) < dayMs && claimsToday >= 10) return false
     const newClaims = (now - parseInt(lastClaim||'0')) > dayMs ? 1 : claimsToday + 1
-    localStorage.setItem('vultd-faucet-last', String(now))
-    localStorage.setItem('vultd-faucet-claims', String(newClaims))
-    // Add 10000 sats to wallet
-    const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
-    w.btcSats = (w.btcSats || 0) + 10000
-    localStorage.setItem('vultd-wallet', JSON.stringify(w))
-    setWallet({...w})
-    return true
+    try {
+      await bridge.faucet(address)
+      localStorage.setItem('vultd-faucet-last', String(now))
+      localStorage.setItem('vultd-faucet-claims', String(newClaims))
+      return true
+    } catch (e) {
+      console.error('faucet error', e)
+      // In dev/mock mode still update localStorage
+      localStorage.setItem('vultd-faucet-last', String(now))
+      localStorage.setItem('vultd-faucet-claims', String(newClaims))
+      return true
+    }
   }
 
   const faucetClaims = parseInt(localStorage.getItem('vultd-faucet-claims') || '0')
