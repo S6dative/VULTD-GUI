@@ -19,19 +19,28 @@ function createWindow() {
   }
 }
 
-ipcMain.handle('vusd', async (_, args) => {
+function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
-    const vusdBin = path.join(app.getAppPath(), '..', 'vusd')
-    const proc = spawn(vusdBin, ['--signet', ...args], { env: { ...process.env } })
-    let out = '', err = ''
+    const proc = spawn(bin, args, { env: { ...process.env, ...env } })
+    let out='', err=''
     proc.stdout.on('data', d => out += d)
     proc.stderr.on('data', d => err += d)
     proc.on('close', code => {
-      if (code !== 0) return reject(new Error(err || `exit ${code}`))
+      if (code !== 0) return reject(new Error(err.trim() || 'exit '+code))
       try { resolve(JSON.parse(out)) } catch { resolve({ output: out.trim() }) }
     })
   })
-})
+}
+const BCLI = 'bitcoin-cli'
+const VUSD_BIN = path.join(app.getAppPath(), '..', 'vusd')
+const SARGS = ['-signet','-rpcwallet=vusd','-rpcuser=vusd','-rpcpassword=vusd_rpcpassword','-rpcport=38332']
+const VENV = { VUSD_OWNER_SEED_HEX:'8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038', VUSD_SIGNING_KEY_HEX:'855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e' }
+ipcMain.handle('vusd', async (_, args) => run(VUSD_BIN, args, VENV))
+ipcMain.handle('bitcoin-cli', async (_, args) => run(BCLI, [...SARGS, ...args]))
+ipcMain.handle('faucet', async (_, address) => run(BCLI, [...SARGS, 'sendtoaddress', address, (10000/100000000).toFixed(8)]))
+ipcMain.handle('btc-balance', async () => run(BCLI, [...SARGS, 'getbalance']))
+ipcMain.handle('btc-address', async () => run(BCLI, [...SARGS, 'getnewaddress']))
+
 
 app.whenReady().then(createWindow)
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

@@ -1,4 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electron', {
-  ipcRenderer: { invoke: (ch, ...a) => ipcRenderer.invoke(ch, ...a) }
+  vusd:       (args)    => ipcRenderer.invoke('vusd', args),
+  bitcoinCli: (args)    => ipcRenderer.invoke('bitcoin-cli', args),
+  faucet:     (address) => ipcRenderer.invoke('faucet', address),
+  btcBalance: ()        => ipcRenderer.invoke('btc-balance'),
+  btcAddress: ()        => ipcRenderer.invoke('btc-address'),
 })
