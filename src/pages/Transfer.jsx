@@ -1,30 +1,194 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
-import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react'
-import { formatUsd, formatSats, timeAgo } from '../data'
+import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw, Bitcoin, DollarSign, ChevronDown } from 'lucide-react'
 
-export default function Transfer() {
-  const { wallet, network } = useApp()
-  const vusdBalance = wallet?.vusdBalance || 0
-  const [tab, setTab] = useState('send')
+const fmt  = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
+const sats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
+
+function CopyBtn({ text }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),2000) }
+  return (
+    <button onClick={copy} className="btn btn-secondary btn-sm">
+      {copied ? <><Check size={12} style={{color:'var(--success)'}} /> Copied</> : <><Copy size={12}/> Copy</>}
+    </button>
+  )
+}
+
+function TabBar({ tabs, active, onChange }) {
+  return (
+    <div style={{ display:'inline-flex', background:'var(--card2)', border:'1px solid var(--border)', borderRadius:8, padding:3 }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => onChange(t.id)} style={{
+          display:'flex', alignItems:'center', gap:6,
+          padding:'6px 16px', borderRadius:6, border:'none', cursor:'pointer',
+          fontSize:13, fontWeight: active===t.id ? 500 : 400,
+          background: active===t.id ? 'var(--card)' : 'transparent',
+          color: active===t.id ? 'var(--fg)' : 'var(--muted-fg)',
+          transition:'all 0.12s',
+          boxShadow: active===t.id ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+          fontFamily:'Geist, sans-serif',
+          letterSpacing:'-0.01em',
+        }}>
+          {t.icon && <t.icon size={13} />}
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPrice }) {
+  const btcUsd = btcPrice ? (btcSats/100000000)*btcPrice : 0
+  const assets = [
+    { id:'btc',  label:'Bitcoin', sub: btcSats > 0 ? sats(btcSats) : '0 sats', value: fmt(btcUsd), icon:Bitcoin, color:'var(--btc)', bg:'var(--btc-dim)' },
+    { id:'vusd', label:'VUSD',    sub:'Private stablecoin',                       value: fmt(vusdBalance), icon:DollarSign, color:'var(--fg-dim)', bg:'var(--card3)' },
+  ]
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+      <span className="label">Asset</span>
+      <div style={{ display:'flex', gap:8 }}>
+        {assets.map(a => (
+          <button key={a.id} onClick={() => onChange(a.id)} style={{
+            flex:1, display:'flex', alignItems:'center', gap:10,
+            padding:'10px 12px', borderRadius:8, cursor:'pointer',
+            border: value===a.id ? '1px solid var(--border2)' : '1px solid var(--border)',
+            background: value===a.id ? 'var(--card2)' : 'var(--bg)',
+            textAlign:'left', transition:'all 0.12s',
+          }}>
+            <div style={{ width:30, height:30, borderRadius:7, background:a.bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <a.icon size={14} style={{color:a.color}} />
+            </div>
+            <div style={{flex:1}}>
+              <div style={{ fontSize:13, fontWeight:500, color:'var(--fg)', letterSpacing:'-0.01em' }}>{a.label}</div>
+              <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>{a.sub}</div>
+            </div>
+            <div style={{ fontSize:12, fontFamily:'Geist Mono, monospace', color:'var(--fg-dim)' }}>{a.value}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Send Panel ────────────────────────────────────────────────────────────────
+function SendPanel({ wallet, network }) {
+  const [asset, setAsset] = useState('btc')
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const [btcPrice] = useState(85000)
 
-  const sendValue = parseFloat(amount)||0
+  const btcSats = wallet?.btcSats || 0
+  const vusdBalance = wallet?.vusdBalance || 0
+  const sendValue = parseFloat(amount) || 0
+  const isBtc = asset === 'btc'
+
+  const maxAmount = isBtc ? btcSats / 100000000 : vusdBalance
+  const isValidAddr = isBtc
+    ? (to.startsWith('tb1') || to.startsWith('bc1') || to.startsWith('1') || to.startsWith('3'))
+    : to.startsWith('vusd:')
+  const isValid = sendValue > 0 && sendValue <= maxAmount && isValidAddr
+
+  const handleSend = async () => {
+    if (!isValid) return
+    setSending(true); setStatus(null)
+    try {
+      if (isBtc) {
+        // bitcoin-cli sendtoaddress
+        const btcAmt = sendValue.toFixed(8)
+        await bridge.bitcoinCli ? window.electron?.bitcoinCli(['sendtoaddress', to, btcAmt])
+          : Promise.reject(new Error('Not in Electron'))
+      } else {
+        await bridge.send(to, sendValue)
+      }
+      setStatus({ ok:true, msg: isBtc ? `Sent ${sendValue} BTC to ${to.slice(0,16)}...` : 'VUSD sent over Lightning!' })
+      setTo(''); setAmount('')
+    } catch (e) {
+      setStatus({ ok:false, msg:'Send failed: '+(e.message||'check node connection') })
+    }
+    setSending(false)
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <AssetSelector value={asset} onChange={a => { setAsset(a); setTo(''); setAmount(''); setStatus(null) }}
+        btcSats={btcSats} vusdBalance={vusdBalance} btcPrice={btcPrice} />
+
+      {/* Privacy notice for VUSD */}
+      {!isBtc && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', borderRadius:8, background:'var(--success-dim)', border:'1px solid rgba(34,197,94,0.15)' }}>
+          <Shield size={13} style={{color:'var(--success)', flexShrink:0}} />
+          <span style={{ fontSize:12, color:'var(--success)', lineHeight:1.5 }}>
+            Ring signatures + stealth addresses. Sender, recipient and amount are hidden.
+          </span>
+        </div>
+      )}
+
+      <div>
+        <span className="label">{isBtc ? 'Bitcoin Address' : 'VUSD Stealth Address'}</span>
+        <input value={to} onChange={e => setTo(e.target.value)}
+          placeholder={isBtc ? (network==='signet' ? 'tb1q...' : 'bc1q...') : 'vusd:...'}
+          className="input mono"
+          style={{ fontSize:12 }}
+        />
+        {to && !isValidAddr && (
+          <div style={{ fontSize:11, color:'var(--danger)', marginTop:4 }}>
+            {isBtc ? 'Invalid Bitcoin address' : 'Must start with vusd:'}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <span className="label">{isBtc ? 'Amount (BTC)' : 'Amount (USD)'}</span>
+        <div style={{ position:'relative' }}>
+          <input value={amount} onChange={e => setAmount(e.target.value)} type="number"
+            placeholder={isBtc ? '0.00000000' : '0.00'}
+            className="input mono"
+            step={isBtc ? '0.00000001' : '0.01'}
+          />
+          <button onClick={() => setAmount(String(maxAmount))}
+            style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'var(--card3)', border:'none', color:'var(--muted-fg)', fontSize:11, padding:'2px 8px', borderRadius:4, cursor:'pointer', fontFamily:'Geist, sans-serif' }}>
+            Max
+          </button>
+        </div>
+        <div style={{ fontSize:11, color:'var(--muted-fg)', marginTop:4, fontFamily:'Geist Mono, monospace' }}>
+          Available: {isBtc ? sats(btcSats) : fmt(vusdBalance)}
+        </div>
+      </div>
+
+      {status && (
+        <div style={{ padding:'10px 14px', borderRadius:8, background: status.ok ? 'var(--success-dim)' : 'var(--danger-dim)', color: status.ok ? 'var(--success)' : 'var(--danger)', fontSize:13, border: `1px solid ${status.ok ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+          {status.msg}
+        </div>
+      )}
+
+      <button onClick={handleSend} disabled={sending || !isValid} className="btn btn-primary btn-lg" style={{ width:'100%', borderRadius:10 }}>
+        {sending
+          ? <><RefreshCw size={14} className="spin" /> Sending...</>
+          : <><ArrowUpRight size={14} /> Send {sendValue > 0 ? (isBtc ? sendValue+' BTC' : fmt(sendValue)+' VUSD') : ''}</>}
+      </button>
+    </div>
+  )
+}
+
+// ── Receive Panel ─────────────────────────────────────────────────────────────
+function ReceivePanel({ wallet }) {
+  const [asset, setAsset] = useState('btc')
   const [vusdAddr, setVusdAddr] = useState(wallet?.vusdAddress || '')
   const [genning, setGenning] = useState(false)
+  const btcAddr = wallet?.address || ''
+  const isBtc = asset === 'btc'
+  const displayAddr = isBtc ? btcAddr : vusdAddr
 
-  const generateAddress = async () => {
+  const generateVusd = async () => {
     setGenning(true)
     try {
       const res = await bridge.generateAddress()
       const addr = res?.address || res?.output || ''
       setVusdAddr(addr)
-      // persist to wallet
       const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
       w.vusdAddress = addr
       localStorage.setItem('vultd-wallet', JSON.stringify(w))
@@ -32,148 +196,122 @@ export default function Transfer() {
     setGenning(false)
   }
 
-  const isValid = sendValue>0 && sendValue<=vusdBalance && to.startsWith('vusd:')
-
-  const handleSend = async () => {
-    if (!isValid) return
-    setSending(true); setStatus(null)
-    try {
-      await bridge.send(to, sendValue)
-      setStatus({ ok: true, msg: 'VUSD sent successfully over Lightning!' })
-      setTo(''); setAmount('')
-    } catch (e) {
-      setStatus({ ok: false, msg: 'Send failed: ' + (e.message || 'unknown error') })
-    }
-    setSending(false)
-  }
-
-  const copy = () => {
-    navigator.clipboard?.writeText(vusdAddr || '')
-    setCopied(true); setTimeout(()=>setCopied(false),2000)
-  }
-
-  const txHistory = []  // populated from vusd CLI in production
-
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:24,maxWidth:640}}>
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Asset toggle */}
       <div>
-        <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Send / Receive</h1>
-        <p style={{color:'#737373',fontSize:14}}>Transfer VUSD privately via Lightning Network</p>
-      </div>
-
-      {/* Balance */}
-      <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <div style={{fontSize:13,color:'#737373',marginBottom:4}}>VUSD Balance</div>
-            <div style={{fontFamily:'Space Mono',fontSize:24,fontWeight:700}}>{formatUsd(vusdBalance)}</div>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#22c55e',background:'rgba(34,197,94,0.1)',padding:'6px 12px',borderRadius:6}}>
-            <Shield size={14}/> Privacy-enhanced transfers
-          </div>
+        <span className="label">Asset</span>
+        <div style={{ display:'flex', gap:8 }}>
+          {[
+            { id:'btc',  label:'Bitcoin',  icon:Bitcoin,     color:'var(--btc)',     bg:'var(--btc-dim)' },
+            { id:'vusd', label:'VUSD',     icon:DollarSign,  color:'var(--fg-dim)',  bg:'var(--card3)' },
+          ].map(a => (
+            <button key={a.id} onClick={() => setAsset(a.id)} style={{
+              flex:1, display:'flex', alignItems:'center', gap:8,
+              padding:'10px 12px', borderRadius:8, cursor:'pointer',
+              border: asset===a.id ? '1px solid var(--border2)' : '1px solid var(--border)',
+              background: asset===a.id ? 'var(--card2)' : 'var(--bg)',
+              transition:'all 0.12s',
+            }}>
+              <div style={{ width:26, height:26, borderRadius:6, background:a.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <a.icon size={13} style={{color:a.color}} />
+              </div>
+              <span style={{ fontSize:13, fontWeight:asset===a.id?500:400, color: asset===a.id ? 'var(--fg)' : 'var(--muted-fg)', letterSpacing:'-0.01em' }}>{a.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{display:'inline-flex',background:'#1a1a1a',border:'1px solid #262626',borderRadius:8,padding:4}}>
-        {['send','receive'].map(t=>(
-          <button key={t} onClick={()=>setTab(t)}
-            style={{padding:'6px 20px',borderRadius:6,border:'none',cursor:'pointer',fontSize:14,fontWeight:tab===t?500:400,
-              background:tab===t?'#262626':'transparent',color:tab===t?'#fafafa':'#737373',textTransform:'capitalize'}}>
-            {t==='send'?<span style={{display:'flex',alignItems:'center',gap:6}}><ArrowUpRight size={14}/> Send</span>
-                       :<span style={{display:'flex',alignItems:'center',gap:6}}><ArrowDownLeft size={14}/> Receive</span>}
-          </button>
-        ))}
-      </div>
-
-      {tab==='send' ? (
-        <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
-          {/* Privacy badge */}
-          <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:8,background:'rgba(34,197,94,0.05)',border:'1px solid rgba(34,197,94,0.15)',marginBottom:20}}>
-            <Shield size={14} style={{color:'#22c55e'}}/>
-            <span style={{fontSize:12,color:'#22c55e'}}>Your transfer uses ring signatures and stealth addresses. Sender, recipient, and amount are hidden from observers.</span>
-          </div>
-
-          <label style={{fontSize:12,color:'#737373',display:'block',marginBottom:6}}>Recipient Address</label>
-          <input value={to} onChange={e=>setTo(e.target.value)}
-            placeholder="Enter a VUSD stealth address starting with vusd:"
-            style={{width:'100%',padding:'10px 12px',borderRadius:8,background:'#111',border:'1px solid #262626',color:'#fafafa',outline:'none',fontFamily:'Space Mono',fontSize:11,marginBottom:16}}/>
-
-          <label style={{fontSize:12,color:'#737373',display:'block',marginBottom:6}}>Amount (USD)</label>
-          <div style={{position:'relative',marginBottom:6}}>
-            <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" placeholder="0.00"
-              style={{width:'100%',padding:'10px 12px',borderRadius:8,background:'#111',border:'1px solid #262626',color:'#fafafa',outline:'none',fontSize:14}}/>
-            <button onClick={()=>setAmount(String(vusdBalance))}
-              style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'#262626',border:'none',color:'#a3a3a3',fontSize:11,padding:'2px 8px',borderRadius:4,cursor:'pointer'}}>
-              Max
+      {/* Address display */}
+      <div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+          <span className="label" style={{ marginBottom:0 }}>
+            {isBtc ? 'Your Bitcoin Address' : 'Your VUSD Stealth Address'}
+          </span>
+          {!isBtc && (
+            <button onClick={generateVusd} disabled={genning} className="btn btn-ghost btn-sm">
+              <RefreshCw size={11} className={genning ? 'spin' : ''} />
+              {genning ? 'Generating...' : 'Generate new'}
             </button>
-          </div>
-          <div style={{fontSize:12,color:'#737373',marginBottom:20}}>Available: {formatUsd(vusdBalance)}</div>
-
-          {status && (
-            <div style={{marginBottom:16,padding:'10px 14px',borderRadius:8,background:status.ok?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)',color:status.ok?'#22c55e':'#ef4444',fontSize:13}}>
-              {status.msg}
-            </div>
           )}
-
-          <button onClick={handleSend} disabled={sending||!isValid}
-            style={{width:'100%',padding:'12px',borderRadius:8,fontWeight:600,fontSize:14,border:'none',
-              cursor:sending||!isValid?'not-allowed':'pointer',
-              background:sending||!isValid?'#262626':'#fafafa',
-              color:sending||!isValid?'#737373':'#111',
-              display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-            {sending?<><RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/> Sending...</>
-                    :<><ArrowUpRight size={14}/> Send {sendValue>0?formatUsd(sendValue):''} VUSD</>}
-          </button>
         </div>
-      ) : (
-        <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
-          <div style={{fontSize:13,color:'#737373',marginBottom:16}}>
-            Share your VUSD stealth address to receive private transfers via Lightning.
+
+        {displayAddr ? (
+          <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
+            <div style={{ fontFamily:'Geist Mono, monospace', fontSize:12, color:'var(--fg)', wordBreak:'break-all', lineHeight:1.8, marginBottom:12 }}>
+              {displayAddr}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <CopyBtn text={displayAddr} />
+            </div>
           </div>
-          <div style={{background:'#111',border:'1px solid #262626',borderRadius:8,padding:16,marginBottom:16}}>
-            <div style={{fontSize:11,color:'#737373',marginBottom:8,fontFamily:'Space Mono'}}>YOUR VUSD ADDRESS</div>
-            <div style={{fontFamily:'Space Mono',fontSize:10,color:'#fafafa',wordBreak:'break-all',lineHeight:1.8}}>{vusdAddr || 'No address yet — click Generate below'}</div>
+        ) : (
+          <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, padding:'24px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>
+              {isBtc ? 'No Bitcoin address generated yet' : 'No VUSD address yet'}
+            </div>
+            {!isBtc && (
+              <button onClick={generateVusd} disabled={genning} className="btn btn-secondary">
+                <RefreshCw size={13} className={genning ? 'spin' : ''} />
+                {genning ? 'Generating...' : 'Generate VUSD Address'}
+              </button>
+            )}
           </div>
-          <div style={{display:'flex',gap:12}}>
-            <button onClick={generateAddress} disabled={genning} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px',borderRadius:8,background:'var(--card2)',color:'var(--fg-dim)',fontWeight:600,border:'1px solid var(--border)',cursor:genning?'not-allowed':'pointer',fontSize:14}}>
-              {genning ? 'Generating...' : 'Generate New'}
-            </button>
-            <button onClick={copy}
-              style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px',borderRadius:8,background:'#fafafa',color:'#111',fontWeight:600,border:'none',cursor:'pointer',fontSize:14}}>
-              {copied?<><Check size={14}/> Copied!</>:<><Copy size={14}/> Copy Address</>}
-            </button>
-          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ padding:'10px 14px', borderRadius:8, background:'var(--card2)', border:'1px solid var(--border)', fontSize:12, color:'var(--muted-fg)', lineHeight:1.6 }}>
+        {isBtc
+          ? 'Send Bitcoin to this address to fund your wallet. Funds appear after 1 confirmation on-chain.'
+          : 'Share this stealth address to receive VUSD privately via Lightning. Each address is single-use for maximum privacy.'}
+      </div>
+
+      {/* VUSD privacy note */}
+      {!isBtc && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', borderRadius:8, background:'var(--success-dim)', border:'1px solid rgba(34,197,94,0.15)' }}>
+          <Shield size={13} style={{color:'var(--success)', flexShrink:0}} />
+          <span style={{ fontSize:12, color:'var(--success)' }}>Stealth address hides your identity from the sender</span>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* History */}
-      <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
-        <div style={{fontSize:13,color:'#737373',marginBottom:16}}>Transfer History</div>
-        {txHistory.length === 0 ? (
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'24px 0',color:'#737373',textAlign:'center'}}>
-            <div style={{fontSize:13,marginBottom:4}}>No transfers yet</div>
-            <div style={{fontSize:12}}>Your Lightning VUSD transfers will appear here</div>
-          </div>
-        ) : txHistory.map(tx=>(
-          <div key={tx.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px',borderRadius:8,background:'#222',marginBottom:8}}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:36,height:36,borderRadius:'50%',background:'#2a2a2a',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                {tx.type==='receive'?<ArrowDownLeft size={16} style={{color:'#22c55e'}}/>:<ArrowUpRight size={16} style={{color:'#ef4444'}}/>}
-              </div>
-              <div>
-                <div style={{fontWeight:500,fontSize:14,textTransform:'capitalize'}}>{tx.type==='receive'?'Received':'Sent'}</div>
-                <div style={{fontFamily:'Space Mono',fontSize:11,color:'#737373'}}>{tx.addr}</div>
-              </div>
-            </div>
-            <div style={{textAlign:'right'}}>
-              <div style={{fontFamily:'Space Mono',fontWeight:600,color:tx.type==='receive'?'#22c55e':'#ef4444'}}>
-                {tx.type==='receive'?'+':'-'}{formatUsd(tx.amount)}
-              </div>
-              <div style={{fontSize:11,color:'#737373'}}>{timeAgo(tx.ms)}</div>
-            </div>
-          </div>
-        ))}
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function Transfer() {
+  const { wallet, network } = useApp()
+  const [tab, setTab] = useState('send')
+
+  const tabs = [
+    { id:'send',    label:'Send',    icon:ArrowUpRight },
+    { id:'receive', label:'Receive', icon:ArrowDownLeft },
+  ]
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20, maxWidth:680 }}>
+      <div>
+        <h1 style={{ fontSize:22, fontWeight:700, letterSpacing:'-0.03em', marginBottom:4 }}>Send / Receive</h1>
+        <p style={{ color:'var(--muted-fg)', fontSize:13 }}>Transfer Bitcoin and VUSD</p>
+      </div>
+
+      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+
+      <div className="card">
+        {tab === 'send'
+          ? <SendPanel wallet={wallet} network={network} />
+          : <ReceivePanel wallet={wallet} />}
+      </div>
+
+      {/* Transfer history */}
+      <div className="card">
+        <div style={{ fontSize:11, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:14 }}>
+          Transfer History
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 0', color:'var(--muted-fg)', textAlign:'center' }}>
+          <div style={{ fontSize:13, marginBottom:4 }}>No transfers yet</div>
+          <div style={{ fontSize:12 }}>Bitcoin and VUSD transfers will appear here</div>
+        </div>
       </div>
     </div>
   )
