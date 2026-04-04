@@ -36,8 +36,8 @@
   },
   "main": "electron/main.js",
   "build": {
-    "appId": "com.vusd.wallet",
-    "productName": "VUSD Wallet",
+    "appId": "com.vultd.wallet",
+    "productName": "VULTD",
     "directories": {
       "output": "dist-electron"
     },
@@ -55,5 +55,5 @@
       "target": "dmg"
     }
   },
-  "description": "VULTD Wallet — Bitcoin-backed private stablecoin desktop app"
+  "description": "VULTD Wallet \u2014 Bitcoin-backed private stablecoin desktop app"
 }
