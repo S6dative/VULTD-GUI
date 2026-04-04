@@ -181,7 +181,7 @@ export function UnlockScreen() {
         {error && (
           <div style={{ fontSize: 13, color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <AlertCircle size={13} />
-            Incorrect PIN{attempts >= 3 ? \` · \${attempts} attempts\` : ''}
+            Incorrect PIN{attempts >= 3 ? ' · ' + attempts + ' attempts' : ''}
           </div>
         )}
       </div>
