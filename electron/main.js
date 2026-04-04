@@ -29,9 +29,8 @@ function run(bin, args, env={}) {
 
 function parseVusd(text) {
   const r = {}
-  for (const line of text.split("
-")) {
-    const m = line.match(/^\s+([^:]+?)\s*:\s*\X([\d.,]+)/)
+  for (const line of text.split("\n")) {
+    const m = line.match(/^\s+([^:]+?)\s*:\s*\$?([\d.,]+)/)
     if (m) r[m[1].trim().toLowerCase().replace(/\s+/g,"_")] = parseFloat(m[2].replace(/,/g,""))
   }
   return r
