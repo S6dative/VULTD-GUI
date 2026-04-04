@@ -21,9 +21,26 @@ export function AppProvider({ children }) {
 
   const lock = () => setUnlocked(false)
 
+  const refreshBtcAddress = async () => {
+    try {
+      const res = await bridge.btcAddress()
+      const addr = res?.output?.trim() || res
+      if (addr && typeof addr === 'string' && addr.startsWith('tb1')) {
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.address = addr
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        setWallet(prev => ({ ...prev, address: addr }))
+      }
+    } catch {}
+  }
+
   const unlock = (pin) => {
     const stored = localStorage.getItem('vultd-pin')
-    if (stored && stored === pin) { setUnlocked(true); return true }
+    if (stored && stored === pin) {
+      setUnlocked(true)
+      setTimeout(() => refreshBtcAddress(), 500)
+      return true
+    }
     return false
   }
 

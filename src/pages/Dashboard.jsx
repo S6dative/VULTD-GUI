@@ -61,12 +61,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchPrice()
-    // Fetch real BTC balance
+    // Real BTC balance from node
     bridge.btcBalance().then(bal => {
       if (typeof bal === 'number') setBtcSats(Math.round(bal * 100000000))
       else if (bal?.output) setBtcSats(Math.round(parseFloat(bal.output) * 100000000))
     }).catch(() => {})
-    // Load vaults
+    // Real VUSD balance from vusd CLI
+    bridge.vusdBalance().then(data => {
+      if (data?.vusd_balance != null) {
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.vusdBalance = data.vusd_balance
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+      }
+    }).catch(() => {})
+    // Real vaults
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
