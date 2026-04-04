@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bitcoin, DollarSign, TrendingUp, RefreshCw, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Lock, Unlock, HelpCircle, Zap, Copy, Check, ChevronRight } from 'lucide-react'
+import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
 import { useNavigate } from 'react-router-dom'
@@ -38,8 +38,7 @@ export default function Dashboard() {
   const [priceChange, setPriceChange] = useState(null)
   const [priceLoading, setPriceLoading] = useState(true)
   const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
-  const [claiming, setClaiming] = useState(false)
-  const [claimMsg, setClaimMsg] = useState(null)
+
   const [vaults, setVaults] = useState([])
 
   const fetchPrice = async () => {
@@ -94,24 +93,7 @@ export default function Dashboard() {
   const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)
   const btcAddr = wallet?.address || ''
 
-  const handleClaim = async () => {
-    setClaiming(true)
-    try {
-      let addr = btcAddr
-      if (!addr) {
-        const res = await bridge.btcAddress()
-        addr = res?.output || res || ''
-      }
-      const ok = await claimFaucet(addr)
-      setClaimMsg(ok
-        ? { ok: true, text: '10,000 sats sent to your wallet' }
-        : { ok: false, text: 'Daily limit reached (10/10)' })
-    } catch (e) {
-      setClaimMsg({ ok: false, text: 'Faucet error: ' + (e.message || 'check node connection') })
-    }
-    setClaiming(false)
-    setTimeout(() => setClaimMsg(null), 4000)
-  }
+
 
   const up = priceChange && parseFloat(priceChange) >= 0
 
@@ -194,32 +176,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Faucet (signet only) */}
-      {isSignet && (
-        <div className="card" style={{ borderColor: 'rgba(247,147,26,0.15)', background: 'rgba(247,147,26,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                <Zap size={14} style={{ color: 'var(--btc)' }} />
-                sBTC Faucet
-                <Tip text="Get free test Bitcoin for signet development. 10,000 sats per claim, max 10 claims per day." />
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
-                10,000 sats per claim · <span style={{ fontFamily: 'Geist Mono, monospace' }}>Claims today: {faucetClaims}/10</span>
-              </div>
-              {claimMsg && (
-                <div style={{ marginTop: 6, fontSize: 12, color: claimMsg.ok ? 'var(--success)' : 'var(--danger)' }}>
-                  {claimMsg.text}
-                </div>
-              )}
-            </div>
-            <button onClick={handleClaim} disabled={!canClaim || claiming} className="btn btn-btc">
-              {claiming ? <RefreshCw size={13} className="spin" /> : <Zap size={13} />}
-              {claiming ? 'Claiming...' : 'Claim sBTC'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Balance grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

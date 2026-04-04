@@ -96,7 +96,7 @@ export function AppProvider({ children }) {
       network, setNetwork,
       unlocked, lock, unlock, setupPin,
       hasWallet, wallet, createWallet, recoverWallet,
-      claimFaucet, canClaim, faucetClaims,
+
     }}>
       {children}
     </AppContext.Provider>
