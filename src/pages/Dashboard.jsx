@@ -1,55 +1,50 @@
 import { useState, useEffect } from 'react'
-import { Bitcoin, DollarSign, TrendingUp, RefreshCw, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Lock, Unlock, HelpCircle, Zap } from 'lucide-react'
+import { Bitcoin, DollarSign, TrendingUp, RefreshCw, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Lock, Unlock, HelpCircle, Zap, Copy, Check, ChevronRight } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
+import { useNavigate } from 'react-router-dom'
 
-const formatUsd = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
-const formatSats = n => n>=100000000?(n/100000000).toFixed(8)+' BTC':n.toLocaleString()+' sats'
-const timeAgo = ms => { const s=Math.floor((Date.now()-ms)/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return'about '+Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago' }
-
-
-const TX_ICONS = { send:ArrowUpRight, receive:ArrowDownLeft, mint:Coins, repay:CreditCard, open_vault:Lock, close_vault:Unlock }
-const TX_LABELS = { send:'Sent VUSD', receive:'Received VUSD', mint:'Minted VUSD', repay:'Repaid Debt', open_vault:'Opened Vault', close_vault:'Closed Vault' }
-const TX_COLORS = { send:'var(--danger)', receive:'var(--success)', mint:'var(--success)', repay:'var(--warning)', open_vault:'var(--fg)', close_vault:'var(--muted-fg)' }
+const fmt  = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
+const sats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
+const ago  = ms => { const s=Math.floor((Date.now()-ms)/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return'about '+Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago' }
 
 function Tip({ text }) {
   return (
-    <div className="tooltip-wrap" style={{ marginLeft: 6 }}>
-      <HelpCircle size={13} style={{ color: 'var(--muted-fg)', cursor: 'help' }} />
+    <div className="tooltip-wrap" style={{ marginLeft: 5 }}>
+      <HelpCircle size={12} style={{ color: 'var(--muted-fg)', cursor: 'help' }} />
       <div className="tooltip">{text}</div>
     </div>
   )
 }
 
-function StatCard({ label, value, sub, tip, icon: Icon, iconColor }) {
+function CopyButton({ text, size = 13 }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard?.writeText(text)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>{label}</span>
-          {tip && <Tip text={tip} />}
-        </div>
-        {Icon && <Icon size={16} style={{ color: iconColor || 'var(--muted-fg)' }} />}
-      </div>
-      <div className="mono" style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>{sub}</div>}
-    </div>
+    <button onClick={copy} className="btn btn-ghost btn-sm" style={{ padding: '3px 6px' }}>
+      {copied ? <Check size={size} style={{ color: 'var(--success)' }} /> : <Copy size={size} />}
+    </button>
   )
 }
 
 export default function Dashboard() {
   const { network, wallet, claimFaucet, canClaim, faucetClaims } = useApp()
+  const navigate = useNavigate()
   const isSignet = network === 'signet'
   const [btcPrice, setBtcPrice] = useState(null)
   const [priceChange, setPriceChange] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [priceLoading, setPriceLoading] = useState(true)
+  const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
   const [claiming, setClaiming] = useState(false)
   const [claimMsg, setClaimMsg] = useState(null)
+  const [vaults, setVaults] = useState([])
 
   const fetchPrice = async () => {
-    setLoading(true)
+    setPriceLoading(true)
     try {
-      // Try multiple feeds
       const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
       const data = await res.json()
       setBtcPrice(data.bitcoin.usd)
@@ -59,113 +54,159 @@ export default function Dashboard() {
         const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
         const data = await res.json()
         setBtcPrice(parseFloat(data.data.amount))
-      } catch {
-        setBtcPrice(85000) // fallback
-      }
+      } catch { setBtcPrice(85000) }
     }
-    setLoading(false)
+    setPriceLoading(false)
   }
 
   useEffect(() => {
     fetchPrice()
+    // Fetch real BTC balance
     bridge.btcBalance().then(bal => {
-      if (typeof bal === 'number') {
-        const sats = Math.round(bal * 100000000)
-        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
-        w.btcSats = sats
-        localStorage.setItem('vultd-wallet', JSON.stringify(w))
-      }
+      if (typeof bal === 'number') setBtcSats(Math.round(bal * 100000000))
+      else if (bal?.output) setBtcSats(Math.round(parseFloat(bal.output) * 100000000))
+    }).catch(() => {})
+    // Load vaults
+    bridge.readVaults().then(data => {
+      const entries = Array.isArray(data) ? data : Object.entries(data || {})
+      const normalized = entries.map(([id, v]) => ({
+        id: v.vault_id || id,
+        state: v.state || 'Unknown',
+        collateralSats: v.locked_btc || 0,
+        debt: v.debt_vusd || 0,
+      }))
+      setVaults(normalized)
     }).catch(() => {})
   }, [])
 
-  const btcSats = wallet?.btcSats || 0
   const vusdBalance = wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
+  const openVaults = vaults.filter(v => v.state === 'Open')
+  const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
+  const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)
+  const btcAddr = wallet?.address || ''
 
   const handleClaim = async () => {
     setClaiming(true)
     try {
-      let addr = wallet?.address
+      let addr = btcAddr
       if (!addr) {
         const res = await bridge.btcAddress()
-        addr = res?.output || res
+        addr = res?.output || res || ''
       }
       const ok = await claimFaucet(addr)
-      setClaimMsg(ok ? { ok: true, text: '10,000 sats sent to your wallet!' } : { ok: false, text: 'Daily limit reached (10/10)' })
+      setClaimMsg(ok
+        ? { ok: true, text: '10,000 sats sent to your wallet' }
+        : { ok: false, text: 'Daily limit reached (10/10)' })
     } catch (e) {
-      setClaimMsg({ ok: false, text: 'Faucet error: ' + (e.message || 'unknown') })
+      setClaimMsg({ ok: false, text: 'Faucet error: ' + (e.message || 'check node connection') })
     }
     setClaiming(false)
     setTimeout(() => setClaimMsg(null), 4000)
   }
 
+  const up = priceChange && parseFloat(priceChange) >= 0
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 900 }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Dashboard</h1>
-          <p style={{ color: 'var(--muted-fg)', fontSize: 14 }}>Manage your Bitcoin-backed stablecoin</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 4 }}>Dashboard</h1>
+          <p style={{ color: 'var(--muted-fg)', fontSize: 13 }}>Bitcoin-backed private stablecoin</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
           <span className="badge badge-warning">{isSignet ? 'Signet' : 'Mainnet'}</span>
           {isSignet && <span className="badge badge-danger">TEST</span>}
         </div>
       </div>
 
-      {/* Live BTC Price */}
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(247,147,26,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bitcoin size={20} style={{ color: 'var(--btc)' }} />
+      {/* BTC Price */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--btc-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(247,147,26,0.2)' }}>
+            <Bitcoin size={18} style={{ color: 'var(--btc)' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+              Bitcoin · Live Price <Tip text="Real-time BTC/USD price used for vault health calculations" />
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted-fg)', display: 'flex', alignItems: 'center' }}>
-                Bitcoin (BTC) · Live Oracle
-                <Tip text="Real-time BTC price from CoinGecko oracle feed, used to calculate vault health ratios" />
-              </div>
-              <div className="mono" style={{ fontSize: 24, fontWeight: 700 }}>
-                {loading ? '...' : formatUsd(btcPrice)}
-              </div>
+            <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>
+              {priceLoading ? <span className="skeleton" style={{ width: 120, height: 22, display: 'inline-block' }} /> : fmt(btcPrice)}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {priceChange && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: parseFloat(priceChange) >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 10px', borderRadius: 6 }}>
-                <TrendingUp size={14} style={{ color: parseFloat(priceChange) >= 0 ? 'var(--success)' : 'var(--danger)' }} />
-                <span style={{ color: parseFloat(priceChange) >= 0 ? 'var(--success)' : 'var(--danger)', fontSize: 13, fontWeight: 600 }}>
-                  {parseFloat(priceChange) >= 0 ? '+' : ''}{priceChange}%
-                </span>
-              </div>
-            )}
-            <button onClick={fetchPrice} className="btn btn-secondary" style={{ padding: '6px 12px' }}>
-              <RefreshCw size={13} className={loading ? 'spin' : ''} />
-              {loading ? 'Updating...' : 'Refresh'}
-            </button>
-          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {priceChange && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: up ? 'var(--success-dim)' : 'var(--danger-dim)' }}>
+              <TrendingUp size={12} style={{ color: up ? 'var(--success)' : 'var(--danger)', transform: up ? 'none' : 'scaleY(-1)' }} />
+              <span style={{ color: up ? 'var(--success)' : 'var(--danger)', fontSize: 12, fontWeight: 600, fontFamily: 'Geist Mono, monospace' }}>
+                {up ? '+' : ''}{priceChange}%
+              </span>
+            </div>
+          )}
+          <button onClick={fetchPrice} className="btn btn-secondary btn-sm">
+            <RefreshCw size={12} className={priceLoading ? 'spin' : ''} />
+            {priceLoading ? 'Updating' : 'Refresh'}
+          </button>
         </div>
       </div>
 
-      {/* Signet Faucet */}
+      {/* BTC Wallet Address */}
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Your Bitcoin Address
+          </div>
+          <span className={'badge ' + (isSignet ? 'badge-warning' : 'badge-btc')}>{isSignet ? 'SIGNET' : 'MAINNET'}</span>
+        </div>
+        {btcAddr ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              flex: 1, padding: '10px 12px', borderRadius: 8,
+              background: 'var(--bg)', border: '1px solid var(--border)',
+              fontFamily: 'Geist Mono, monospace', fontSize: 12,
+              color: 'var(--fg)', wordBreak: 'break-all', lineHeight: 1.6,
+            }}>
+              {btcAddr}
+            </div>
+            <CopyButton text={btcAddr} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--muted-fg)' }}>No address generated yet</span>
+            <button onClick={() => navigate('/transfer')} className="btn btn-secondary btn-sm">
+              Generate <ChevronRight size={12} />
+            </button>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 8 }}>
+          Send {isSignet ? 'signet BTC (sBTC)' : 'Bitcoin'} to this address to fund your wallet and open vaults
+        </div>
+      </div>
+
+      {/* Faucet (signet only) */}
       {isSignet && (
-        <div className="card">
+        <div className="card" style={{ borderColor: 'rgba(247,147,26,0.15)', background: 'rgba(247,147,26,0.03)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, marginBottom: 4 }}>
-                <Zap size={16} style={{ color: 'var(--btc)', marginRight: 6 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                <Zap size={14} style={{ color: 'var(--btc)' }} />
                 sBTC Faucet
-                <Tip text="Claim free test Bitcoin (sBTC) on signet to practice opening vaults and minting VUSD. Max 10 claims per day, 10,000 sats each." />
+                <Tip text="Get free test Bitcoin for signet development. 10,000 sats per claim, max 10 claims per day." />
               </div>
-              <div style={{ fontSize: 13, color: 'var(--muted-fg)' }}>
-                10,000 sats per claim · <span className="mono">Claims today: {faucetClaims}/10</span>
+              <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
+                10,000 sats per claim · <span style={{ fontFamily: 'Geist Mono, monospace' }}>Claims today: {faucetClaims}/10</span>
               </div>
               {claimMsg && (
-                <div style={{ marginTop: 6, fontSize: 13, color: claimMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{claimMsg.text}</div>
+                <div style={{ marginTop: 6, fontSize: 12, color: claimMsg.ok ? 'var(--success)' : 'var(--danger)' }}>
+                  {claimMsg.text}
+                </div>
               )}
             </div>
-            <button onClick={handleClaim} disabled={!canClaim || claiming} className="btn btn-primary">
-              {claiming ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
+            <button onClick={handleClaim} disabled={!canClaim || claiming} className="btn btn-btc">
+              {claiming ? <RefreshCw size={13} className="spin" /> : <Zap size={13} />}
               {claiming ? 'Claiming...' : 'Claim sBTC'}
             </button>
           </div>
@@ -174,71 +215,89 @@ export default function Dashboard() {
 
       {/* Balance grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* BTC + VUSD */}
         <div className="card">
-          <div style={{ fontSize: 12, color: 'var(--muted-fg)', display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            Total Balance <Tip text="Combined value of your BTC and VUSD holdings in USD" />
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+            Total Balance
           </div>
           {btcSats === 0 && vusdBalance === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', color: 'var(--muted-fg)' }}>
+            <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--muted-fg)' }}>
               <div style={{ fontSize: 13, marginBottom: 4 }}>No balance yet</div>
-              <div style={{ fontSize: 12 }}>{isSignet ? 'Use the faucet to get test sBTC' : 'Deposit BTC to get started'}</div>
+              <div style={{ fontSize: 12 }}>{isSignet ? 'Use the faucet above to get test sBTC' : 'Deposit BTC to your address above'}</div>
             </div>
           ) : (
-            <div className="mono" style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>
-              {formatUsd(btcUsd + vusdBalance)}
+            <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 14 }}>
+              {fmt(btcUsd + vusdBalance)}
             </div>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(247,147,26,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Bitcoin size={16} style={{ color: 'var(--btc)' }} />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontWeight: 500 }}>{isSignet ? 'sBTC' : 'BTC'}</span>
-                    {isSignet && <span className="badge badge-warning" style={{ fontSize: 10 }}>SIGNET</span>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[
+              { icon: Bitcoin, color: 'var(--btc)', bg: 'var(--btc-dim)', label: isSignet ? 'sBTC' : 'BTC', sub: sats(btcSats), value: fmt(btcUsd), badge: isSignet ? 'SIGNET' : null, badgeClass: 'badge-warning' },
+              { icon: DollarSign, color: 'var(--fg-dim)', bg: 'var(--card3)', label: 'VUSD', sub: 'Private stablecoin', value: fmt(vusdBalance), badge: null },
+            ].map(({ icon: Icon, color, bg, label, sub, value, badge, badgeClass }) => (
+              <div key={label} className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon size={14} style={{ color }} />
                   </div>
-                  <div className="mono" style={{ fontSize: 12, color: 'var(--muted-fg)' }}>{formatSats(btcSats)}</div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500, fontSize: 13 }}>
+                      {label}
+                      {badge && <span className={'badge ' + badgeClass} style={{ fontSize: 9 }}>{badge}</span>}
+                    </div>
+                    <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 11, color: 'var(--muted-fg)' }}>{sub}</div>
+                  </div>
                 </div>
+                <div style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 500, fontSize: 13 }}>{value}</div>
               </div>
-              <div className="mono" style={{ fontWeight: 500 }}>{formatUsd(btcUsd)}</div>
-            </div>
-            <div className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(250,250,250,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <DollarSign size={16} style={{ color: 'var(--fg)' }} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500 }}>VUSD</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Private stablecoin</div>
-                </div>
-              </div>
-              <div className="mono" style={{ fontWeight: 500 }}>{formatUsd(vusdBalance)}</div>
-            </div>
+            ))}
           </div>
         </div>
 
+        {/* Vault summary */}
         <div className="card">
-          <div style={{ fontSize: 12, color: 'var(--muted-fg)', display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            Vault Summary <Tip text="Overview of your open BTC vaults. Vaults hold collateral and generate VUSD debt." />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Vault Summary</div>
+            <button onClick={() => navigate('/vaults')} className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}>
+              View all <ChevronRight size={11} />
+            </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>
-            <Lock size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
-            <div style={{ fontSize: 13, marginBottom: 4 }}>No open vaults</div>
-            <div style={{ fontSize: 12 }}>Open a vault to start minting VUSD</div>
-          </div>
+          {openVaults.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted-fg)' }}>
+              <Lock size={28} style={{ marginBottom: 8, opacity: 0.25 }} />
+              <div style={{ fontSize: 13, marginBottom: 4 }}>No open vaults</div>
+              <button onClick={() => navigate('/vaults')} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+                Open a vault
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Open vaults</span>
+                <span style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 600 }}>{openVaults.length}</span>
+              </div>
+              <div className="divider" />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>BTC locked</span>
+                <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{sats(totalLocked)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Total debt</span>
+                <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{fmt(totalDebt)}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Activity */}
       <div className="card">
-        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 16, display: 'flex', alignItems: 'center' }}>
-          Recent Activity <Tip text="Your latest wallet transactions including sends, receives, mints, and vault operations" />
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+          Recent Activity
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>
           <div style={{ fontSize: 13, marginBottom: 4 }}>No activity yet</div>
-          <div style={{ fontSize: 12 }}>Your transactions will appear here</div>
+          <div style={{ fontSize: 12 }}>Transactions will appear here once you start using your wallet</div>
         </div>
       </div>
     </div>
