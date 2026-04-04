@@ -29,7 +29,14 @@ function run(bin, args, env={}) {
     proc.stderr.on('data', d => err += d)
     proc.on('close', code => {
       if (code !== 0) return reject(new Error(err.trim() || 'exit '+code))
-      try { resolve(JSON.parse(out)) } catch { resolve({ output: out.trim() }) }
+      const trimmed = out.trim()
+      try { resolve(JSON.parse(trimmed)) }
+      catch {
+        // plain number (getbalance, getblockcount etc)
+        const num = parseFloat(trimmed)
+        if (!isNaN(num) && String(num) === trimmed || trimmed.match(/^-?[\d.]+$/)) resolve(num)
+        else resolve({ output: trimmed })
+      }
     })
   })
 }
