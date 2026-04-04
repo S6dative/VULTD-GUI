@@ -35,13 +35,14 @@ function run(bin, args, env={}) {
 }
 const BCLI = 'bitcoin-cli'
 const VUSD_BIN = path.join(app.getAppPath(), '..', 'vusd')
-const SARGS = ['-signet','-rpcwallet=vusd','-rpcuser=vusd','-rpcpassword=vusd_rpcpassword','-rpcport=38332']
+const SARGS = ['-signet','-rpcuser=vusd','-rpcpassword=vusd_rpcpassword','-rpcport=38332']
+const SARGS_WALLET = [...SARGS, '-rpcwallet=vusd']
 const VENV = { VUSD_OWNER_SEED_HEX:'8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038', VUSD_SIGNING_KEY_HEX:'855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e' }
 ipcMain.handle('vusd', async (_, args) => run(VUSD_BIN, args, VENV))
 ipcMain.handle('bitcoin-cli', async (_, args) => run(BCLI, [...SARGS, ...args]))
-ipcMain.handle('faucet', async (_, address) => run(BCLI, [...SARGS, 'sendtoaddress', address, (10000/100000000).toFixed(8)]))
-ipcMain.handle('btc-balance', async () => run(BCLI, [...SARGS, 'getbalance']))
-ipcMain.handle('btc-address', async () => run(BCLI, [...SARGS, 'getnewaddress']))
+ipcMain.handle('faucet', async (_, address) => run(BCLI, [...SARGS_WALLET, 'sendtoaddress', address, (10000/100000000).toFixed(8)]))
+ipcMain.handle('btc-balance', async () => run(BCLI, [...SARGS_WALLET, 'getbalance']))
+ipcMain.handle('btc-address', async () => run(BCLI, [...SARGS_WALLET, 'getnewaddress']))
 
 
 // read vaults.json directly

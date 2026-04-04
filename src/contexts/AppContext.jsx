@@ -34,19 +34,15 @@ export function AppProvider({ children }) {
     setUnlocked(true)
   }
 
-  const createWallet = (pin, seedPhrase) => {
-    const addr = network === 'signet'
-      ? 'tb1q' + Array(38).fill(0).map(()=>'abcdefghjkmnpqrstuvwxyz023456789'[Math.floor(Math.random()*32)]).join('')
-      : 'bc1q' + Array(38).fill(0).map(()=>'abcdefghjkmnpqrstuvwxyz023456789'[Math.floor(Math.random()*32)]).join('')
-    const w = { seedPhrase, address: addr, btcSats: 0, vusdBalance: 0 }
+  const createWallet = (pin, seedPhrase, address) => {
+    const w = { seedPhrase, address: address || '', btcSats: 0, vusdBalance: 0 }
     localStorage.setItem('vultd-wallet', JSON.stringify(w))
     setWallet(w)
     setupPin(pin)
   }
 
-  const recoverWallet = (pin, seedPhrase) => {
-    // In production: derive keys from seed phrase
-    const w = { seedPhrase, address: 'tb1qrecovered...', btcSats: 0, vusdBalance: 0 }
+  const recoverWallet = (pin, seedPhrase, address) => {
+    const w = { seedPhrase, address: address || '', btcSats: 0, vusdBalance: 0 }
     localStorage.setItem('vultd-wallet', JSON.stringify(w))
     setWallet(w)
     setupPin(pin)
