@@ -7,6 +7,35 @@ const os = require("os")
 const IS_WIN = process.platform === "win32"
 if (IS_WIN) console.log("PATH:", process.env.PATH)
 const WSL = "wsl.exe"
+
+// Direct Bitcoin RPC via HTTP - no WSL needed
+const http = require("http")
+function btcRpc(method, params=[], wallet="") {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ jsonrpc:"1.0", id:"vultd", method, params })
+    const walletPath = wallet ? "/wallet/"+wallet : "/"
+    const opts = {
+      hostname:"127.0.0.1", port:38332, path:walletPath, method:"POST",
+      headers:{ "Content-Type":"application/json", "Content-Length":Buffer.byteLength(body),
+        "Authorization":"Basic "+Buffer.from("vusd:vusd_rpc_password").toString("base64") }
+    }
+    const req = http.request(opts, res => {
+      let data = ""
+      res.on("data", d => data += d)
+      res.on("end", () => {
+        try {
+          const r = JSON.parse(data)
+          if (r.error) return reject(new Error(r.error.message))
+          resolve(r.result)
+        } catch(e) { reject(e) }
+      })
+    })
+    req.on("error", reject)
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error("RPC timeout")) })
+    req.write(body)
+    req.end()
+  })
+}
 const BCLI = IS_WIN ? WSL : "bitcoin-cli"
 const VUSD_BIN = IS_WIN ? WSL : path.join(app.getAppPath(), "..", "vusd")
 const VUSD_WSL = "/mnt/c/Users/AK111/Downloads/vusd-protocol-v34/vusd-protocol/target/release/vusd"
@@ -18,7 +47,7 @@ const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c6
 
 function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
-    const spawnEnv = IS_WIN ? { ...process.env, ...env, PATH: process.env.PATH + ";C:\Windows\System32" } : { ...process.env, ...env }
+    const spawnEnv = IS_WIN ? { ...process.env, ...env, PATH: process.env.PATH + ";C:\Windows\System32;C:\Windows\System32\WindowsApps" } : { ...process.env, ...env }
     const proc = spawn(bin, args, { env: spawnEnv })
     const timeout = setTimeout(() => { proc.kill(); reject(new Error("timeout: " + bin + " " + args[0])) }, 15000)
     let out="", err=""
@@ -55,17 +84,8 @@ function createWindow() {
 ipcMain.handle("vusd", async (_,args) => run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,...args]:args, VENV))
 ipcMain.handle("bitcoin-cli", async (_,args) => run(BCLI,[...SARGS,...args]))
 ipcMain.handle("faucet", async (_,addr) => run(BCLI,[...SARGS_W,"sendtoaddress",addr,(10000/1e8).toFixed(8)]))
-ipcMain.handle("btc-balance", async () => {
-  try {
-    const result = await run(BCLI,[...SARGS_W,"getbalance"])
-    console.log("btc-balance result:", result)
-    return result
-  } catch(e) {
-    console.error("btc-balance error:", e.message)
-    return 0
-  }
-})
-ipcMain.handle("btc-address", async () => run(BCLI,[...SARGS_W,"getnewaddress"]))
+ipcMain.handle("btc-balance", async () => { try { return await btcRpc("getbalance",[],"vusd") } catch(e) { console.error("btc-balance:",e.message); return 0 } })
+ipcMain.handle("btc-address", async () => { try { return await btcRpc("getnewaddress",[],"vusd") } catch(e) { console.error("btc-address:",e.message); return "" } })
 ipcMain.handle("read-vaults", async () => { try { return JSON.parse(fs.readFileSync(VAULTS_PATH,"utf8")) } catch { return {} } })
 ipcMain.handle("vusd-balance-parsed", async () => {
   try {
@@ -81,8 +101,10 @@ ipcMain.handle("vusd-balance-parsed", async () => {
 })
 ipcMain.handle("vusd-oracle-parsed", async () => { const r=await run(VUSD_BIN,IS_WIN?["-e",VUSD_WSL,"oracle"]:["oracle"],VENV); return parseVusd(r.output||"") })
 ipcMain.handle("node-info", async () => {
-  const [b,pp] = await Promise.allSettled([run(BCLI,[...SARGS,"getblockcount"]),run(BCLI,[...SARGS,"getpeerinfo"])])
-  return { blockcount: b.status==="fulfilled"?b.value:null, peers: pp.status==="fulfilled"?(Array.isArray(pp.value)?pp.value.length:0):0 }
+  try {
+    const [blocks, peers] = await Promise.allSettled([btcRpc("getblockcount"), btcRpc("getpeerinfo")])
+    return { blockcount: blocks.status==="fulfilled"?blocks.value:null, peers: peers.status==="fulfilled"?(Array.isArray(peers.value)?peers.value.length:0):0 }
+  } catch(e) { return { blockcount: null, peers: 0 } }
 })
 
 app.whenReady().then(createWindow)
