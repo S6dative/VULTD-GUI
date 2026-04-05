@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("electron", {
   btcAddress:  ()        => ipcRenderer.invoke("btc-address"),
   readVaults:  ()        => ipcRenderer.invoke("read-vaults"),
   vusdBalance: ()        => ipcRenderer.invoke("vusd-balance-parsed"),
+  readWallet:  ()        => ipcRenderer.invoke("read-wallet"),
   vusdOracle:  ()        => ipcRenderer.invoke("vusd-oracle-parsed"),
   nodeInfo:    ()        => ipcRenderer.invoke("node-info"),
   shell: { openExternal: (url) => shell.openExternal(url) },

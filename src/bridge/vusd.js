@@ -24,6 +24,7 @@ export const bridge = {
   btcAddress:      ()              => ipc('btcAddress'),
   vusdBalance:     ()              => ipc('vusdBalance'),
   readVaults:      ()              => ipc('readVaults'),
+  readWallet:      ()              => ipc('readWallet'),
   faucet:          (addr)          => ipc('faucet', addr),
   oracle:          ()              => ipc('vusd', ['oracle']),
   generateAddress: ()              => ipc('vusd', ['generate-address']),

@@ -40,6 +40,8 @@ const BCLI = IS_WIN ? WSL : "bitcoin-cli"
 const VUSD_BIN = IS_WIN ? WSL : path.join(app.getAppPath(), "..", "vusd")
 const VUSD_WSL = "/mnt/c/Users/AK111/Downloads/vusd-protocol-v34/vusd-protocol/target/release/vusd"
 const VAULTS_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\vaults.json"
+const WALLET_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\wallet.json"
+const WALLET_PATH = IS_WIN ? WALLET_WIN : require("path").join(require("os").homedir(), ".vusd", "wallet.json")
 const VAULTS_PATH = IS_WIN ? VAULTS_WIN : path.join(os.homedir(), ".vusd", "vaults.json")
 const SARGS = IS_WIN ? ["-e","bitcoin-cli","-signet","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"] : ["-signet","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"]
 const SARGS_W = IS_WIN ? ["-e","bitcoin-cli","-signet","-rpcwallet=vusd","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"] : ["-signet","-rpcwallet=vusd","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"]
@@ -87,6 +89,20 @@ ipcMain.handle("faucet", async (_,addr) => run(BCLI,[...SARGS_W,"sendtoaddress",
 ipcMain.handle("btc-balance", async () => { try { return await btcRpc("getbalance",[],"vusd") } catch(e) { console.error("btc-balance:",e.message); return 0 } })
 ipcMain.handle("btc-address", async () => { try { return await btcRpc("getnewaddress",[],"vusd") } catch(e) { console.error("btc-address:",e.message); return "" } })
 ipcMain.handle("read-vaults", async () => { try { return JSON.parse(fs.readFileSync(VAULTS_PATH,"utf8")) } catch { return {} } })
+ipcMain.handle("read-wallet", async () => {
+  try {
+    const raw = fs.readFileSync(WALLET_PATH, "utf8")
+    const outputs = JSON.parse(raw)
+    const balance = unspent.reduce((sum, o) => sum + o.amount / 1e18, 0)
+    const history = outputs.map(o => ({
+      amount: o.amount / 1e18,
+      spent: o.spent,
+      received_at: o.received_at,
+      output_index: o.output_index,
+    })).sort((a,b) => b.received_at - a.received_at)
+    return { balance: Math.round(balance * 100) / 100, outputs: unspent.length, history }
+  } catch(e) { console.error("read-wallet:", e.message); return { balance: 0, outputs: 0, history: [] } }
+})
 ipcMain.handle("vusd-balance-parsed", async () => {
   try {
     const r = await run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,"balance"]:["balance"], VENV)

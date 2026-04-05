@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight } from 'lucide-react'
+import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
 import { useNavigate } from 'react-router-dom'
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
 
   const [vaults, setVaults] = useState([])
+  const [txHistory, setTxHistory] = useState([])
 
   const fetchPrice = async () => {
     setPriceLoading(true)
@@ -65,13 +66,15 @@ export default function Dashboard() {
       if (typeof bal === 'number') setBtcSats(Math.round(bal * 100000000))
       else if (bal?.output) setBtcSats(Math.round(parseFloat(bal.output) * 100000000))
     }).catch(() => {})
-    // Real VUSD balance from vusd CLI
-    bridge.vusdBalance().then(data => {
-      if (data?.vusd_balance != null) {
+    // Real VUSD balance from wallet.json directly
+    bridge.readWallet().then(data => {
+      if (data?.balance != null) {
         const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
-        w.vusdBalance = data.vusd_balance
+        w.vusdBalance = data.balance
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        refreshWallet()
       }
+      if (data?.history) setTxHistory(data.history)
     }).catch(() => {})
     // Real vaults
     bridge.readVaults().then(data => {
@@ -259,10 +262,27 @@ export default function Dashboard() {
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
           Recent Activity
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>No activity yet</div>
-          <div style={{ fontSize: 12 }}>Transactions will appear here once you start using your wallet</div>
-        </div>
+        {txHistory.length === 0 ? (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'24px 0', color:'var(--muted-fg)', textAlign:'center' }}>
+            <div style={{ fontSize:13, marginBottom:4 }}>No activity yet</div>
+            <div style={{ fontSize:12 }}>Transactions will appear here</div>
+          </div>
+        ) : txHistory.map((tx, i) => (
+          <div key={i} className='card2' style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: i < txHistory.length-1 ? 6 : 0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background: tx.spent ? 'var(--danger-dim)' : 'var(--success-dim)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {tx.spent ? <ArrowUpRight size={14} style={{color:'var(--danger)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
+              </div>
+              <div>
+                <div style={{ fontWeight:500, fontSize:13 }}>{tx.spent ? 'Sent VUSD' : 'Received VUSD'}</div>
+                <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{new Date(tx.received_at*1000).toLocaleDateString()}</div>
+              </div>
+            </div>
+            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color: tx.spent ? 'var(--danger)' : 'var(--success)' }}>
+              {tx.spent ? '-' : '+'}{fmt(tx.amount)}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
