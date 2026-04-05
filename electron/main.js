@@ -83,7 +83,17 @@ function createWindow() {
   else win.loadFile(path.join(__dirname,"../dist/index.html"))
 }
 
-ipcMain.handle("vusd", async (_,args) => run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,...args]:args, VENV))
+ipcMain.handle("vusd", async (_,args) => {
+  if (IS_WIN) {
+    const wslArgs = [
+      "--env", "VUSD_OWNER_SEED_HEX=8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038",
+      "--env", "VUSD_SIGNING_KEY_HEX=855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e",
+      "-e", VUSD_WSL, ...args
+    ]
+    return run(VUSD_BIN, wslArgs, {})
+  }
+  return run(VUSD_BIN, args, VENV)
+})
 ipcMain.handle("bitcoin-cli", async (_,args) => run(BCLI,[...SARGS,...args]))
 ipcMain.handle("faucet", async (_,addr) => run(BCLI,[...SARGS_W,"sendtoaddress",addr,(10000/1e8).toFixed(8)]))
 ipcMain.handle("btc-balance", async () => { try { return await btcRpc("getbalance",[],"vusd") } catch(e) { console.error("btc-balance:",e.message); return 0 } })
@@ -106,7 +116,8 @@ ipcMain.handle("read-wallet", async () => {
 })
 ipcMain.handle("vusd-balance-parsed", async () => {
   try {
-    const r = await run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,"balance"]:["balance"], VENV)
+    const wslArgs2 = IS_WIN ? ["--env","VUSD_OWNER_SEED_HEX=8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038","--env","VUSD_SIGNING_KEY_HEX=855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e","-e",VUSD_WSL,"balance"] : ["balance"]
+    const r = await run(VUSD_BIN, wslArgs2, IS_WIN?{}:VENV)
     console.log("vusd-balance raw:", r)
     const parsed = parseVusd(r.output||"")
     console.log("vusd-balance parsed:", parsed)
@@ -116,7 +127,7 @@ ipcMain.handle("vusd-balance-parsed", async () => {
     return {}
   }
 })
-ipcMain.handle("vusd-oracle-parsed", async () => { const r=await run(VUSD_BIN,IS_WIN?["-e",VUSD_WSL,"oracle"]:["oracle"],VENV); return parseVusd(r.output||"") })
+ipcMain.handle("vusd-oracle-parsed", async () => { const wslArgs3=IS_WIN?["--env","VUSD_OWNER_SEED_HEX=8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038","--env","VUSD_SIGNING_KEY_HEX=855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e","-e",VUSD_WSL,"oracle"]:["oracle"]; const r=await run(VUSD_BIN,wslArgs3,IS_WIN?{}:VENV); return parseVusd(r.output||"") })
 ipcMain.handle("node-info", async () => {
   try {
     const [blocks, peers] = await Promise.allSettled([btcRpc("getblockcount"), btcRpc("getpeerinfo")])
