@@ -48,7 +48,7 @@ const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c6
 function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
     const spawnEnv = IS_WIN ? { ...process.env, ...env, PATH: process.env.PATH + ";C:\Windows\System32;C:\Windows\System32\WindowsApps" } : { ...process.env, ...env }
-    const proc = spawn(bin, args, { env: spawnEnv })
+    const proc = spawn(bin, args, { env: spawnEnv, stdio: ["ignore", "pipe", "pipe"] })
     const timeout = setTimeout(() => { proc.kill(); reject(new Error("timeout: " + bin + " " + args[0])) }, 15000)
     let out="", err=""
     proc.stdout.on("data", d => out += d)
