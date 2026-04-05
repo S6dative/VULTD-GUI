@@ -50,10 +50,30 @@ function createWindow() {
 ipcMain.handle("vusd", async (_,args) => run(VUSD_BIN, IS_WIN?[VUSD_WSL,...args]:args, VENV))
 ipcMain.handle("bitcoin-cli", async (_,args) => run(BCLI,[...SARGS,...args]))
 ipcMain.handle("faucet", async (_,addr) => run(BCLI,[...SARGS_W,"sendtoaddress",addr,(10000/1e8).toFixed(8)]))
-ipcMain.handle("btc-balance", async () => run(BCLI,[...SARGS_W,"getbalance"]))
+ipcMain.handle("btc-balance", async () => {
+  try {
+    const result = await run(BCLI,[...SARGS_W,"getbalance"])
+    console.log("btc-balance result:", result)
+    return result
+  } catch(e) {
+    console.error("btc-balance error:", e.message)
+    return 0
+  }
+})
 ipcMain.handle("btc-address", async () => run(BCLI,[...SARGS_W,"getnewaddress"]))
 ipcMain.handle("read-vaults", async () => { try { return JSON.parse(fs.readFileSync(VAULTS_PATH,"utf8")) } catch { return {} } })
-ipcMain.handle("vusd-balance-parsed", async () => { const r=await run(VUSD_BIN,IS_WIN?[VUSD_WSL,"balance"]:["balance"],VENV); return parseVusd(r.output||"") })
+ipcMain.handle("vusd-balance-parsed", async () => {
+  try {
+    const r = await run(VUSD_BIN, IS_WIN?[VUSD_WSL,"balance"]:["balance"], VENV)
+    console.log("vusd-balance raw:", r)
+    const parsed = parseVusd(r.output||"")
+    console.log("vusd-balance parsed:", parsed)
+    return parsed
+  } catch(e) {
+    console.error("vusd-balance error:", e.message)
+    return {}
+  }
+})
 ipcMain.handle("vusd-oracle-parsed", async () => { const r=await run(VUSD_BIN,IS_WIN?[VUSD_WSL,"oracle"]:["oracle"],VENV); return parseVusd(r.output||"") })
 ipcMain.handle("node-info", async () => {
   const [b,pp] = await Promise.allSettled([run(BCLI,[...SARGS,"getblockcount"]),run(BCLI,[...SARGS,"getpeerinfo"])])
