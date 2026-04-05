@@ -5,7 +5,7 @@ const fs = require("fs")
 const os = require("os")
 
 const IS_WIN = process.platform === "win32"
-const WSL = "C:\Windows\Sysnative\wsl.exe"
+const WSL = "wsl.exe"
 const BCLI = IS_WIN ? WSL : "bitcoin-cli"
 const VUSD_BIN = IS_WIN ? WSL : path.join(app.getAppPath(), "..", "vusd")
 const VUSD_WSL = "/mnt/c/Users/AK111/Downloads/vusd-protocol-v34/vusd-protocol/target/release/vusd"
@@ -17,7 +17,8 @@ const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c6
 
 function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(bin, args, { env: { ...process.env, ...env } })
+    const spawnEnv = IS_WIN ? { ...process.env, ...env, PATH: process.env.PATH + ";C:\Windows\System32" } : { ...process.env, ...env }
+    const proc = spawn(bin, args, { env: spawnEnv })
     let out="", err=""
     proc.stdout.on("data", d => out += d)
     proc.stderr.on("data", d => err += d)
