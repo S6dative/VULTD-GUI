@@ -59,34 +59,43 @@ export default function Dashboard() {
     setPriceLoading(false)
   }
 
-  useEffect(() => {
+  const fetchAll = () => {
     fetchPrice()
-    // Real BTC balance from node
     bridge.btcBalance().then(bal => {
-      if (typeof bal === 'number') setBtcSats(Math.round(bal * 100000000))
-      else if (bal?.output) setBtcSats(Math.round(parseFloat(bal.output) * 100000000))
+      let s = 0
+      if (typeof bal === "number") s = Math.round(bal * 100000000)
+      else if (bal?.output) s = Math.round(parseFloat(bal.output) * 100000000)
+      if (s >= 0) {
+        setBtcSats(s)
+        const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
+        w.btcSats = s
+        localStorage.setItem("vultd-wallet", JSON.stringify(w))
+        refreshWallet()
+      }
     }).catch(() => {})
-    // Real VUSD balance from wallet.json directly
     bridge.readWallet().then(data => {
       if (data?.balance != null) {
-        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
         w.vusdBalance = data.balance
-        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        localStorage.setItem("vultd-wallet", JSON.stringify(w))
         refreshWallet()
       }
       if (data?.history) setTxHistory(data.history)
     }).catch(() => {})
-    // Real vaults
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
-        id: v.vault_id || id,
-        state: v.state || 'Unknown',
-        collateralSats: v.locked_btc || 0,
-        debt: v.debt_vusd || 0,
+        id: v.vault_id || id, state: v.state || "Unknown",
+        collateralSats: v.locked_btc || 0, debt: v.debt_vusd || 0,
       }))
       setVaults(normalized)
     }).catch(() => {})
+  }
+
+  useEffect(() => {
+    fetchAll()
+    const interval = setInterval(fetchAll, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const vusdBalance = wallet?.vusdBalance || 0
