@@ -100,7 +100,7 @@ export default function Dashboard() {
 
   const vusdBalance = wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
-  const openVaults = vaults.filter(v => v.state === 'Open')
+  const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active')
   const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
   const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)
   const btcAddr = wallet?.address || ''

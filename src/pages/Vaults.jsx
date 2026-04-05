@@ -50,9 +50,9 @@ export default function Vaults() {
       const entries = Object.entries(data)
       setVaults(entries.map(([id, v]) => ({
         id: String(id || ''),
-        state: v.state || 'Unknown',
+        state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
         collateralSats: v.locked_btc || 0,
-        debt: v.debt_vusd || 0,
+        debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
         openedAt: v.open_timestamp || 0,
       })))
     }).catch(() => {}).finally(() => setLoadingVaults(false))
@@ -80,8 +80,8 @@ export default function Vaults() {
       if (data) {
         const entries = Object.entries(data)
         setVaults(entries.map(([id, v]) => ({
-          id: String(id || ''), state: v.state || 'Unknown',
-          collateralSats: v.locked_btc || 0, debt: v.debt_vusd || 0, openedAt: v.open_timestamp || 0,
+          id: String(id || ''), state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+          collateralSats: v.locked_btc || 0, debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0), openedAt: v.open_timestamp || 0,
         })))
       }
     } catch(e) {
@@ -252,15 +252,15 @@ export default function Vaults() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {vaults.map(v => {
                 const collUsd = (v.collateralSats/1e8)*btcPrice
-                const stateColor = v.state==='Open'?'var(--success)':v.state==='Repaid'?'var(--warning)':'var(--muted-fg)'
-                const stateBg = v.state==='Open'?'var(--success-dim)':v.state==='Repaid'?'var(--warning-dim)':'var(--card3)'
+                const stateColor = v.state==='Open' || v.state==='Active' || v.state==='Active'?'var(--success)':v.state==='Repaid'?'var(--warning)':'var(--muted-fg)'
+                const stateBg = v.state==='Open' || v.state==='Active' || v.state==='Active'?'var(--success-dim)':v.state==='Repaid'?'var(--warning-dim)':'var(--card3)'
                 const health = v.collateralSats && v.debt > 0 ? Math.round((v.collateralSats/1e8*btcPrice)/v.debt*100) : null
                 return (
                   <div key={v.id} className='card'>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                         <div style={{ width:40, height:40, borderRadius:10, background:'var(--card2)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid var(--border)' }}>
-                          {v.state==='Open' ? <Lock size={16} style={{color:'var(--fg)'}} /> : <Unlock size={16} style={{color:'var(--muted-fg)'}} />}
+                          {v.state==='Open' || v.state==='Active' || v.state==='Active' ? <Lock size={16} style={{color:'var(--fg)'}} /> : <Unlock size={16} style={{color:'var(--muted-fg)'}} />}
                         </div>
                         <div>
                           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
