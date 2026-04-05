@@ -81,7 +81,7 @@ function createWindow() {
   else win.loadFile(path.join(__dirname,"../dist/index.html"))
 }
 
-ipcMain.handle("vusd", async (_,args) => run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,...args]:args, IS_WIN?{}:VENV))onst { app, BrowserWindow, ipcMain } = require("electron")
+ipcMain.handle("vusd", async (_,args) => run(VUSD_BIN, IS_WIN?["-e",VUSD_WSL,...args]:args, IS_WIN?{}:VENV))
 const { spawn } = require("child_process")
 const path = require("path")
 const fs = require("fs")
