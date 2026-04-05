@@ -5,8 +5,9 @@ const fs = require("fs")
 const os = require("os")
 
 const IS_WIN = process.platform === "win32"
-const BCLI = IS_WIN ? "wsl" : "bitcoin-cli"
-const VUSD_BIN = IS_WIN ? "wsl" : path.join(app.getAppPath(), "..", "vusd")
+const WSL = "C:\Windows\System32\wsl.exe"
+const BCLI = IS_WIN ? WSL : "bitcoin-cli"
+const VUSD_BIN = IS_WIN ? WSL : path.join(app.getAppPath(), "..", "vusd")
 const VUSD_WSL = "/mnt/c/Users/AK111/Downloads/vusd-protocol-v34/vusd-protocol/target/release/vusd"
 const VAULTS_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\vaults.json"
 const VAULTS_PATH = IS_WIN ? VAULTS_WIN : path.join(os.homedir(), ".vusd", "vaults.json")
