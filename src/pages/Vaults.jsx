@@ -190,7 +190,7 @@ export default function Vaults() {
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Vault Summary</div>
-              <SummaryRow label=network === 'signet' ? 'sBTC Collateral' : 'BTC Collateral' value={btcVal > 0 ? btcAmount+' BTC' : '--'} />
+              <SummaryRow label={isSignet ? 'sBTC Collateral' : 'BTC Collateral'} value={btcVal > 0 ? btcAmount+' BTC' : '--'} />
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
