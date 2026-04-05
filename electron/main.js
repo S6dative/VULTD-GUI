@@ -122,7 +122,6 @@ const VUSD_BIN = IS_WIN ? WSL : path.join(app.getAppPath(), "..", "vusd")
 const VUSD_WSL = "/home/s6d/.vusd/run_vusd.sh"
 const VAULTS_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\vaults.json"
 const WALLET_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\wallet.json"
-const WALLET_PATH = IS_WIN ? WALLET_WIN : require("path").join(require("os").homedir(), ".vusd", "wallet.json")
 const VAULTS_PATH = IS_WIN ? VAULTS_WIN : path.join(os.homedir(), ".vusd", "vaults.json")
 const SARGS = IS_WIN ? ["-e","bitcoin-cli","-signet","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"] : ["-signet","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"]
 const SARGS_W = IS_WIN ? ["-e","bitcoin-cli","-signet","-rpcwallet=vusd","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"] : ["-signet","-rpcwallet=vusd","-rpcuser=vusd","-rpcpassword=vusd_rpc_password","-rpcport=38332"]
