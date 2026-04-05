@@ -39,7 +39,12 @@ export default function Vaults() {
   const btcPrice = 85000
   const walletSats = wallet?.btcSats || 0
 
+  const [realSats, setRealSats] = useState(walletSats)
+
   useEffect(() => {
+    bridge.btcBalance().then(bal => {
+      if (typeof bal === 'number') setRealSats(Math.round(bal * 1e8))
+    }).catch(() => {})
     bridge.readVaults().then(data => {
       if (!data) return
       const entries = Object.entries(data)
@@ -60,8 +65,8 @@ export default function Vaults() {
   const networkFee = 0.00015
   const systemFee = vusdToMint > 0 ? vusdToMint * 0.001 : 0
   const preset = PRESETS.find(p => p.ltv === ltv) || PRESETS[1]
-  const canOpen = btcVal > 0 && collateralSats <= walletSats && collateralSats > 0
-  const maxBtc = Math.max(0, walletSats/1e8 - networkFee).toFixed(8)
+  const canOpen = btcVal > 0 && collateralSats <= realSats && collateralSats > 0
+  const maxBtc = Math.max(0, realSats/1e8 - networkFee).toFixed(8)
 
   const handleOpen = async () => {
     if (!canOpen) return
@@ -122,7 +127,7 @@ export default function Vaults() {
             {/* BTC Collateral */}
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>BTC Collateral</div>
-              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>Enter the amount of BTC to deposit as collateral</div>
+              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>{isSignet ? "Enter the amount of sBTC to deposit as collateral" : "Enter the amount of BTC to deposit as collateral"}</div>
               <div style={{ position:'relative' }}>
                 <input value={btcAmount} onChange={e => setBtcAmount(e.target.value)} type='number'
                   placeholder='0.00000000' step='0.00001' min='0'
@@ -131,7 +136,7 @@ export default function Vaults() {
               </div>
               <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
                 <span style={{ fontSize:11, color:'var(--muted-fg)' }}>
-                  {btcVal > 0 ? '≈ '+fmt(collateralUsd) : 'Available: '+fmtSats(walletSats)}
+                  {btcVal > 0 ? '≈ '+fmt(collateralUsd) : 'Available: '+fmtSats(realSats)}
                 </span>
                 <button onClick={() => setBtcAmount(maxBtc)}
                   style={{ fontSize:11, color:'var(--btc)', background:'none', border:'none', cursor:'pointer', fontFamily:'Geist, sans-serif' }}>
@@ -194,7 +199,7 @@ export default function Vaults() {
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
-              <SummaryRow label='Network Fee' value={networkFee.toFixed(8)+' BTC'} />
+              <SummaryRow label='Network Fee' value={networkFee.toFixed(8)+(isSignet ? " sBTC" : " BTC")} />
               <SummaryRow label='System Fee' value={btcVal > 0 ? fmt(systemFee) : '--'} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0' }}>
                 <span style={{ fontSize:13, color:'var(--muted-fg)' }}>Initial Redemption Fee</span>
