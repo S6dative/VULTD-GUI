@@ -5,7 +5,6 @@ const fs = require("fs")
 const os = require("os")
 
 const IS_WIN = process.platform === "win32"
-if (IS_WIN) console.log("PATH:", process.env.PATH)
 const WSL = "wsl.exe"
 
 // Direct Bitcoin RPC via HTTP - no WSL needed
@@ -78,7 +77,6 @@ function createWindow() {
     titleBarStyle:"hiddenInset", backgroundColor:"#0a0a0a",
     webPreferences:{ preload:path.join(__dirname,"preload.js"), contextIsolation:true, nodeIntegration:false }
   })
-  win.webContents.openDevTools()
   if (process.env.VITE_DEV_SERVER_URL) win.loadURL(process.env.VITE_DEV_SERVER_URL)
   else win.loadFile(path.join(__dirname,"../dist/index.html"))
 }
