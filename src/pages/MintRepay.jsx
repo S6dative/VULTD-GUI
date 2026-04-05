@@ -16,7 +16,7 @@ export default function MintRepay() {
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
-        id: String(v.vault_id || id || ''),
+        id: String(id || ''),
         state: v.state || 'Unknown',
         collateralSats: v.locked_btc || 0,
         debt: v.debt_vusd || 0,

@@ -21,12 +21,13 @@ export function AppProvider({ children }) {
 
   const lock = () => setUnlocked(false)
 
-  const refreshBtcAddress = async () => {
+  const refreshBtcAddress = async (force=false) => {
     try {
+      const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+      if (w.address && !force) return  // keep existing address
       const res = await bridge.btcAddress()
-      const addr = res?.output?.trim() || res
-      if (addr && typeof addr === 'string' && addr.startsWith('tb1')) {
-        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+      const addr = typeof res === 'string' ? res.trim() : res?.output?.trim() || ''
+      if (addr && (addr.startsWith('tb1') || addr.startsWith('bc1'))) {
         w.address = addr
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
         setWallet(prev => ({ ...prev, address: addr }))

@@ -49,7 +49,7 @@ export default function Vaults() {
       if (!data) return
       const entries = Object.entries(data)
       setVaults(entries.map(([id, v]) => ({
-        id: String(v.vault_id || id || ''),
+        id: String(id || ''),
         state: v.state || 'Unknown',
         collateralSats: v.locked_btc || 0,
         debt: v.debt_vusd || 0,
@@ -80,7 +80,7 @@ export default function Vaults() {
       if (data) {
         const entries = Object.entries(data)
         setVaults(entries.map(([id, v]) => ({
-          id: String(v.vault_id || id || ''), state: v.state || 'Unknown',
+          id: String(id || ''), state: v.state || 'Unknown',
           collateralSats: v.locked_btc || 0, debt: v.debt_vusd || 0, openedAt: v.open_timestamp || 0,
         })))
       }
