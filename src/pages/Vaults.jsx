@@ -5,7 +5,7 @@ import { useApp } from '../contexts/AppContext'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const fmtSats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
-const truncate = id => { const h=id.replace('vault:',''); return 'vault:'+h.slice(0,8)+'...'+h.slice(-8) }
+const truncate = id => { const s=String(id||''); const h=s.replace('vault:',''); return 'vault:'+h.slice(0,8)+'...'+h.slice(-8) }
 const healthColor = h => h >= 200 ? 'var(--success)' : h >= 150 ? 'var(--warning)' : 'var(--danger)'
 
 const PRESETS = [
@@ -49,7 +49,7 @@ export default function Vaults() {
       if (!data) return
       const entries = Object.entries(data)
       setVaults(entries.map(([id, v]) => ({
-        id: v.vault_id || id,
+        id: String(v.vault_id || id || ''),
         state: v.state || 'Unknown',
         collateralSats: v.locked_btc || 0,
         debt: v.debt_vusd || 0,
@@ -80,7 +80,7 @@ export default function Vaults() {
       if (data) {
         const entries = Object.entries(data)
         setVaults(entries.map(([id, v]) => ({
-          id: v.vault_id || id, state: v.state || 'Unknown',
+          id: String(v.vault_id || id || ''), state: v.state || 'Unknown',
           collateralSats: v.locked_btc || 0, debt: v.debt_vusd || 0, openedAt: v.open_timestamp || 0,
         })))
       }
