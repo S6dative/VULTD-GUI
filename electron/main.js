@@ -93,6 +93,7 @@ ipcMain.handle("read-wallet", async () => {
   try {
     const raw = fs.readFileSync(WALLET_PATH, "utf8")
     const outputs = JSON.parse(raw)
+    const unspent = outputs.filter(o => !o.spent)
     const balance = unspent.reduce((sum, o) => sum + o.amount / 1e18, 0)
     const history = outputs.map(o => ({
       amount: o.amount / 1e18,

@@ -156,6 +156,7 @@ function CreateVaultModal({ onClose, onCreated, btcPrice, walletSats }) {
 
           <div style={{ display:"flex", gap:10 }}>
             <button onClick={onClose} className="btn btn-secondary" style={{ flex:1 }}>Cancel</button>
+            <button onClick={handleOpen} disabled={opening || !canOpen} className="btn btn-primary" style={{ flex:2, borderRadius:10 }}>
               {opening ? "Opening Vault..." : canOpen ? "Open Vault" : "Enter BTC amount"}
             </button>
           </div>
