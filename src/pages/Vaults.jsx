@@ -26,6 +26,7 @@ function SummaryRow({ label, value, color }) {
 
 export default function Vaults() {
   const { wallet, network } = useApp()
+  const isSignet = network === 'signet'
   const [tab, setTab] = useState('create')
   const [btcAmount, setBtcAmount] = useState('')
   const [ltv, setLtv] = useState(44)
@@ -189,7 +190,7 @@ export default function Vaults() {
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Vault Summary</div>
-              <SummaryRow label='BTC Collateral' value={btcVal > 0 ? btcAmount+' BTC' : '--'} />
+              <SummaryRow label=network === 'signet' ? 'sBTC Collateral' : 'BTC Collateral' value={btcVal > 0 ? btcAmount+' BTC' : '--'} />
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
@@ -221,7 +222,7 @@ export default function Vaults() {
 
             <button onClick={handleOpen} disabled={opening || !canOpen}
               className='btn btn-primary' style={{ width:'100%', padding:'13px', borderRadius:10, fontSize:15, fontWeight:600 }}>
-              {opening ? 'Opening Vault...' : canOpen ? 'Open Vault' : walletSats === 0 ? 'No BTC balance' : 'Enter BTC amount'}
+              {opening ? 'Opening Vault...' : canOpen ? 'Open Vault' : walletSats === 0 ? isSignet ? 'No sBTC balance' : 'No BTC balance' : 'Enter BTC amount'}
             </button>
 
             <div style={{ fontSize:11, color:'var(--muted-fg)', textAlign:'center', lineHeight:1.6 }}>

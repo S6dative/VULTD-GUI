@@ -1,4 +1,5 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
+import { Component } from 'react'
 import { useState } from 'react'
 import { LayoutDashboard, Vault, ArrowUpDown, Send, Settings, ChevronLeft, ChevronRight, Sun, Moon, Lock } from 'lucide-react'
 import { useApp } from './contexts/AppContext'
@@ -8,6 +9,22 @@ import Vaults from './pages/Vaults'
 import MintRepay from './pages/MintRepay'
 import Transfer from './pages/Transfer'
 import SettingsPage from './pages/Settings'
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  componentDidCatch(e) { console.error('Page crash:', e) }
+  render() {
+    if (this.state.error) return (
+      <div style={{ padding: 32, color: 'var(--danger)', fontSize: 14 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Page error</div>
+        <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, color: 'var(--muted-fg)' }}>{this.state.error.message}</div>
+        <button onClick={() => this.setState({ error: null })} style={{ marginTop: 16, padding: '6px 14px', borderRadius: 8, background: 'var(--card2)', border: '1px solid var(--border)', color: 'var(--fg)', cursor: 'pointer' }}>Retry</button>
+      </div>
+    )
+    return this.props.children
+  }
+}
 
 const nav = [
   { to:'/',         icon:LayoutDashboard, label:'Dashboard' },
@@ -168,6 +185,7 @@ export default function App() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+        <ErrorBoundary>
         <Routes>
           <Route path="/"         element={<Dashboard />} />
           <Route path="/vaults"   element={<Vaults />} />
@@ -175,6 +193,7 @@ export default function App() {
           <Route path="/transfer" element={<Transfer />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   )
