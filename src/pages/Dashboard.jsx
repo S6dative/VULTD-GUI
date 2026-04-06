@@ -86,7 +86,7 @@ export default function Dashboard() {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
         id: v.vault_id || id, state: v.state || "Unknown",
-        collateralSats: v.locked_btc || 0, debt: v.debt_vusd || 0,
+        collateralSats: v.locked_btc || 0, debt: v.debt_vusd > 1000 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
       }))
       setVaults(normalized)
     }).catch(() => {})
