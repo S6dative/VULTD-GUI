@@ -97,8 +97,8 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    const p = IS_WIN ? "\\wsl.localhost\Ubuntu\home\s6d\.vusd\vaults.json" : VAULTS_PATH
-    return JSON.parse(fs.readFileSync(p, "utf8"))
+    const fpath2 = IS_WIN ? "\\wsl.localhost\Ubuntu\home\s6d\.vusd\vaults.json" : VAULTS_PATH
+    return JSON.parse(fs.readFileSync(fpath2, "utf8"))
   } catch(e) {
     try { return JSON.parse(fs.readFileSync(VAULTS_PATH, "utf8")) } catch { return {} }
   }
@@ -106,8 +106,8 @@ ipcMain.handle("read-vaults", async () => {
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const p = IS_WIN ? "\\wsl.localhost\Ubuntu\home\s6d\.vusd\wallet.json" : WALLET_PATH
-    const outputs = JSON.parse(fs.readFileSync(p, "utf8"))
+    const fpath = IS_WIN ? "\\wsl.localhost\Ubuntu\home\s6d\.vusd\wallet.json" : WALLET_PATH
+    const outputs = JSON.parse(fs.readFileSync(fpath, "utf8"))
     const unspent = outputs.filter(o => !o.spent)
     const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
     const history = [...outputs].sort((a,b) => b.received_at - a.received_at).map(o => ({
