@@ -38,6 +38,22 @@ export default function Dashboard() {
   const [priceChange, setPriceChange] = useState(null)
   const [priceLoading, setPriceLoading] = useState(true)
   const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
+  const [generating, setGenerating] = useState(false)
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    try {
+      const res = await bridge.btcAddress()
+      const addr = typeof res === 'string' ? res.trim() : (res?.output || '').trim()
+      if (addr) {
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.address = addr
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        refreshWallet()
+      }
+    } catch(e) { console.error('generate:', e) }
+    setGenerating(false)
+  }
 
   const [vaults, setVaults] = useState([])
   const [txHistory, setTxHistory] = useState([])
