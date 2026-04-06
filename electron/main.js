@@ -97,28 +97,17 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    let raw
-    if (IS_WIN) {
-      const result = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/vaults.json"], {})
-      raw = result.output || ""
-    } else {
-      raw = fs.readFileSync(VAULTS_PATH, "utf8")
-    }
-    return JSON.parse(raw)
-  } catch(e) { console.error("read-vaults:", e.message); return {} }
+    const p = IS_WIN ? "\\\\wsl.localhost\\Ubuntu\\home\\s6d\\.vusd\\vaults.json" : VAULTS_PATH
+    return JSON.parse(fs.readFileSync(p, "utf8"))
+  } catch(e) {
+    try { return JSON.parse(fs.readFileSync(VAULTS_PATH, "utf8")) } catch { return {} }
+  }
 })
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    let raw
-    if (IS_WIN) {
-      // Use wsl to cat the file - UNC path unreliable
-      const result = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/wallet.json"], {})
-      raw = result.output || ""
-    } else {
-      raw = fs.readFileSync(WALLET_PATH, "utf8")
-    }
-    const outputs = JSON.parse(raw)
+    const p = IS_WIN ? "\\\\wsl.localhost\\Ubuntu\\home\\s6d\\.vusd\\wallet.json" : WALLET_PATH
+    const outputs = JSON.parse(fs.readFileSync(p, "utf8"))
     const unspent = outputs.filter(o => !o.spent)
     const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
     const history = [...outputs].sort((a,b) => b.received_at - a.received_at).map(o => ({
