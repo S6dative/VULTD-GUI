@@ -178,8 +178,8 @@ export default function Dashboard() {
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: 'var(--muted-fg)' }}>No address generated yet</span>
-            <button onClick={() => navigate('/transfer')} className="btn btn-secondary btn-sm">
-              Generate <ChevronRight size={12} />
+            <button onClick={handleGenerate} disabled={generating} className="btn btn-secondary btn-sm">
+              {generating ? 'Generating...' : 'Generate'} <ChevronRight size={12} />
             </button>
           </div>
         )}
