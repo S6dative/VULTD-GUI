@@ -45,6 +45,10 @@ export function AppProvider({ children }) {
     return false
   }
 
+  useEffect(() => {
+    if (unlocked) refreshBtcAddress()
+  }, [unlocked])
+
   const setupPin = (pin) => {
     localStorage.setItem('vultd-pin', pin)
     localStorage.setItem('vultd-wallet-exists', '1')

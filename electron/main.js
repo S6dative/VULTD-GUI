@@ -96,19 +96,36 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 })
 
 ipcMain.handle("read-vaults", async () => {
-  try { return JSON.parse(fs.readFileSync(VAULTS_PATH, "utf8")) } catch { return {} }
+  try {
+    let raw
+    if (IS_WIN) {
+      const result = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/vaults.json"], {})
+      raw = result.output || ""
+    } else {
+      raw = fs.readFileSync(VAULTS_PATH, "utf8")
+    }
+    return JSON.parse(raw)
+  } catch(e) { console.error("read-vaults:", e.message); return {} }
 })
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const outputs = JSON.parse(fs.readFileSync(WALLET_PATH, "utf8"))
+    let raw
+    if (IS_WIN) {
+      // Use wsl to cat the file - UNC path unreliable
+      const result = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/wallet.json"], {})
+      raw = result.output || ""
+    } else {
+      raw = fs.readFileSync(WALLET_PATH, "utf8")
+    }
+    const outputs = JSON.parse(raw)
     const unspent = outputs.filter(o => !o.spent)
     const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
     const history = [...outputs].sort((a,b) => b.received_at - a.received_at).map(o => ({
       amount: o.amount / 1e18, spent: o.spent, received_at: o.received_at
     }))
     return { balance, outputs: unspent.length, history }
-  } catch(e) { return { balance: 0, outputs: 0, history: [] } }
+  } catch(e) { console.error("read-wallet:", e.message); return { balance: 0, outputs: 0, history: [] } }
 })
 
 ipcMain.handle("vusd-balance-parsed", async () => {
