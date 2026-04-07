@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require("electron")
-const { spawn } = require("child_process")
+const { spawn, execFileSync } = require("child_process")
 const path = require("path")
 const fs = require("fs")
 const os = require("os")
@@ -7,11 +7,20 @@ const http = require("http")
 
 const IS_WIN = process.platform === "win32"
 const VUSD_WSL = "/home/s6d/.vusd/run_vusd.sh"
-const VAULTS_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\vaults.json"
-const WALLET_WIN = "\\\\wsl$\\Ubuntu\\home\\s6d\\.vusd\\wallet.json"
-const VAULTS_PATH = IS_WIN ? VAULTS_WIN : path.join(os.homedir(), ".vusd", "vaults.json")
-const WALLET_PATH = IS_WIN ? WALLET_WIN : path.join(os.homedir(), ".vusd", "wallet.json")
 const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038", VUSD_SIGNING_KEY_HEX:"855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e" }
+const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
+const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
+
+function readWslFile(wslPath) {
+  // Use powershell to read WSL files reliably on Windows
+  const uncPath = "\\\\wsl.localhost\\Ubuntu" + wslPath.replace(/\//g, "\\")
+  try {
+    return execFileSync("powershell.exe", ["-NoProfile", "-Command", `Get-Content -Raw -Path "${uncPath}"`], { encoding: "utf8", timeout: 5000 })
+  } catch(e) {
+    // Fallback: use wsl cat
+    return execFileSync("wsl.exe", ["-e", "cat", wslPath], { encoding: "utf8", timeout: 5000 })
+  }
+}
 
 function btcRpc(method, params=[], wallet="") {
   return new Promise((resolve, reject) => {
@@ -26,17 +35,13 @@ function btcRpc(method, params=[], wallet="") {
       let data = ""
       res.on("data", d => data += d)
       res.on("end", () => {
-        try {
-          const r = JSON.parse(data)
-          if (r.error) return reject(new Error(r.error.message))
-          resolve(r.result)
-        } catch(e) { reject(e) }
+        try { const r = JSON.parse(data); if (r.error) return reject(new Error(r.error.message)); resolve(r.result) }
+        catch(e) { reject(e) }
       })
     })
     req.on("error", reject)
     req.setTimeout(10000, () => { req.destroy(); reject(new Error("RPC timeout")) })
-    req.write(body)
-    req.end()
+    req.write(body); req.end()
   })
 }
 
@@ -79,8 +84,7 @@ function createWindow() {
 ipcMain.handle("vusd", async (_,args) => {
   const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
   const wslArgs = IS_WIN ? ["-e", VUSD_WSL, ...args] : args
-  const env = IS_WIN ? {} : VENV
-  return run(bin, wslArgs, env)
+  return run(bin, wslArgs, IS_WIN ? {} : VENV)
 })
 
 ipcMain.handle("btc-balance", async () => {
@@ -97,17 +101,15 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    const fpath2 = IS_WIN ? path.win32.join("\\wsl.localhost", "Ubuntu", "home", "s6d", ".vusd", "vaults.json") : VAULTS_PATH
-    return JSON.parse(fs.readFileSync(fpath2, "utf8"))
-  } catch(e) {
-    try { return JSON.parse(fs.readFileSync(VAULTS_PATH, "utf8")) } catch { return {} }
-  }
+    const raw = IS_WIN ? readWslFile("/home/s6d/.vusd/vaults.json") : fs.readFileSync(VAULTS_PATH, "utf8")
+    return JSON.parse(raw)
+  } catch(e) { console.error("read-vaults:", e.message); return {} }
 })
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const fpath = IS_WIN ? path.win32.join("\\wsl.localhost", "Ubuntu", "home", "s6d", ".vusd", "wallet.json") : WALLET_PATH
-    const outputs = JSON.parse(fs.readFileSync(fpath, "utf8"))
+    const raw = IS_WIN ? readWslFile("/home/s6d/.vusd/wallet.json") : fs.readFileSync(WALLET_PATH, "utf8")
+    const outputs = JSON.parse(raw)
     const unspent = outputs.filter(o => !o.spent)
     const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
     const history = [...outputs].sort((a,b) => b.received_at - a.received_at).map(o => ({
@@ -146,8 +148,7 @@ ipcMain.handle("node-info", async () => {
 })
 
 ipcMain.handle("faucet", async (_, address) => {
-  const btc = (10000/100000000).toFixed(8)
-  try { return await btcRpc("sendtoaddress", [address, parseFloat(btc)], "vusd") } catch(e) { return { error: e.message } }
+  try { return await btcRpc("sendtoaddress", [address, 0.0001], "vusd") } catch(e) { return { error: e.message } }
 })
 
 if (IS_WIN) app.commandLine.appendSwitch("no-sandbox")
