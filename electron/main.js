@@ -109,9 +109,15 @@ ipcMain.handle("read-vaults", async () => {
     // Read vault ids from vaults.json, then get health for each
     let vaultData = {}
     try {
-      const raw = fs.readFileSync(VAULTS_PATH,"utf8")
-      vaultData = JSON.parse(raw)
-      console.log("read-vaults: loaded", Object.keys(vaultData).length, "vaults from file")
+      let rawV
+      if (IS_WIN) {
+        const rv = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/vaults.json"], {})
+        rawV = rv.output || ""
+      } else {
+        rawV = fs.readFileSync(VAULTS_PATH, "utf8")
+      }
+      vaultData = JSON.parse(rawV)
+      console.log("read-vaults: loaded", Object.keys(vaultData).length, "vaults")
     } catch(fe) { console.error("read-vaults file:", fe.message) }
     // For each vault, get health via CLI
     const result = {}
@@ -144,8 +150,8 @@ ipcMain.handle("read-wallet", async () => {
     const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
     const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
-    console.log("read-wallet raw r:", JSON.stringify(r).slice(0,200))
-    const text = r.output || ""
+    const rawText = r.output || ""
+    const text = rawText.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\[\d*m/g, "")
     // Parse: "  VUSD balance : $3.00"
     const balMatch = text.match(/VUSD balance\s*:\s*\$?([\d.,]+)/)
     const outMatch = text.match(/Outputs held\s*:\s*(\d+)/)
