@@ -53,7 +53,7 @@ function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
     const spawnEnv = { ...process.env, ...env }
     const proc = spawn(bin, args, { env: spawnEnv, stdio: ["ignore", "pipe", "pipe"] })
-    const timeout = setTimeout(() => { proc.kill(); reject(new Error("timeout")) }, 20000)
+    const timeout = setTimeout(() => { proc.kill(); console.error("TIMEOUT:", bin, args.join(" ")); reject(new Error("timeout")) }, 8000)
     let out="", err=""
     proc.stdout.on("data", d => out += d)
     proc.stderr.on("data", d => err += d)
