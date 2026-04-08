@@ -12,15 +12,7 @@ const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
 
 function readWslFile(wslPath) {
-  const uncPath = "\\\\wsl.localhost\\Ubuntu" + wslPath.replace(/\//g, "\\")
-  try {
-    return execFileSync("powershell.exe",
-      ["-NoProfile", "-Command", "Get-Content -Raw -Path '" + uncPath + "'"],
-      { encoding: "utf8", timeout: 5000 })
-  } catch(e) {
-    console.error("readWslFile powershell failed:", e.message)
-    return execFileSync("wsl.exe", ["-e", "cat", wslPath], { encoding: "utf8", timeout: 5000 })
-  }
+  return execFileSync("wsl.exe", ["-e", "cat", wslPath], { encoding: "utf8", timeout: 5000, windowsHide: true })
 }
 
 function btcRpc(method, params=[], wallet="") {
