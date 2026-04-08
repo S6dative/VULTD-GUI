@@ -11,8 +11,9 @@ const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c6
 const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
 
-function readWslFile(wslPath) {
-  return execFileSync("wsl.exe", ["-e", "cat", wslPath], { encoding: "utf8", timeout: 5000, windowsHide: true })
+async function readWslFile(wslPath) {
+  const r = await run("wsl.exe", ["-e", "cat", wslPath], {})
+  return r.output || ""
 }
 
 function btcRpc(method, params=[], wallet="") {
@@ -94,14 +95,14 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    const raw = IS_WIN ? readWslFile("/home/s6d/.vusd/vaults.json") : fs.readFileSync(VAULTS_PATH, "utf8")
+    const raw = IS_WIN ? await readWslFile("/home/s6d/.vusd/vaults.json") : fs.readFileSync(VAULTS_PATH, "utf8")
     return JSON.parse(raw)
   } catch(e) { console.error("read-vaults:", e.message); return {} }
 })
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const raw = IS_WIN ? readWslFile("/home/s6d/.vusd/wallet.json") : fs.readFileSync(WALLET_PATH, "utf8")
+    const raw = IS_WIN ? await readWslFile("/home/s6d/.vusd/wallet.json") : fs.readFileSync(WALLET_PATH, "utf8")
     const outputs = JSON.parse(raw)
     const unspent = outputs.filter(o => !o.spent)
     const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
