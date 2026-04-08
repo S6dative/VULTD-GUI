@@ -105,21 +105,51 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    const raw = IS_WIN ? await readWslFile("/home/s6d/.vusd/vaults.json") : fs.readFileSync(VAULTS_PATH, "utf8")
-    return JSON.parse(raw)
+    const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
+    // Read vault ids from vaults.json, then get health for each
+    let vaultData = {}
+    try {
+      const raw = IS_WIN ? fs.readFileSync("\\\\wsl.localhost\\Ubuntu\\home\\s6d\\.vusd\\vaults.json","utf8") : fs.readFileSync(VAULTS_PATH,"utf8")
+      vaultData = JSON.parse(raw)
+    } catch {}
+    // For each vault, get health via CLI
+    const result = {}
+    for (const [id, v] of Object.entries(vaultData)) {
+      try {
+        const args = IS_WIN ? ["-e", VUSD_WSL, "health", "--vault", id] : ["health", "--vault", id]
+        const r = await run(bin, args, IS_WIN ? {} : VENV)
+        const text = r.output || ""
+        const stateMatch = text.match(/State:\s*(\w+)/)
+        const lockedMatch = text.match(/Locked:\s*([\d]+)\s*sats/)
+        const debtMatch = text.match(/Debt:\s*([\d.]+)/)
+        const crMatch = text.match(/CR:\s*([\d.]+)%/)
+        result[id] = {
+          ...v,
+          state: stateMatch ? stateMatch[1].charAt(0)+stateMatch[1].slice(1).toLowerCase() : v.state,
+          locked_btc: lockedMatch ? parseInt(lockedMatch[1]) : v.locked_btc,
+          debt_vusd: debtMatch ? parseFloat(debtMatch[1]) : (v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd),
+          health_cr: crMatch ? parseFloat(crMatch[1]) : null,
+        }
+      } catch {
+        result[id] = { ...v, debt_vusd: v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd }
+      }
+    }
+    return result
   } catch(e) { console.error("read-vaults:", e.message); return {} }
 })
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const raw = IS_WIN ? await readWslFile("/home/s6d/.vusd/wallet.json") : fs.readFileSync(WALLET_PATH, "utf8")
-    const outputs = JSON.parse(raw)
-    const unspent = outputs.filter(o => !o.spent)
-    const balance = Math.round(unspent.reduce((s, o) => s + o.amount / 1e18, 0) * 100) / 100
-    const history = [...outputs].sort((a,b) => b.received_at - a.received_at).map(o => ({
-      amount: o.amount / 1e18, spent: o.spent, received_at: o.received_at
-    }))
-    return { balance, outputs: unspent.length, history }
+    const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
+    const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
+    const r = await run(bin, args, IS_WIN ? {} : VENV)
+    const text = r.output || ""
+    // Parse: "  VUSD balance : $3.00"
+    const balMatch = text.match(/VUSD balance\s*:\s*\$?([\d.,]+)/)
+    const outMatch = text.match(/Outputs held\s*:\s*(\d+)/)
+    const balance = balMatch ? parseFloat(balMatch[1].replace(/,/g,"")) : 0
+    const outputs = outMatch ? parseInt(outMatch[1]) : 0
+    return { balance, outputs, history: [] }
   } catch(e) { console.error("read-wallet:", e.message); return { balance: 0, outputs: 0, history: [] } }
 })
 
