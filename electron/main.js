@@ -112,7 +112,8 @@ ipcMain.handle("read-vaults", async () => {
       let rawV
       if (IS_WIN) {
         const rv = await run("wsl.exe", ["-e", VUSD_WSL, "cat-vaults"], {})
-        rawV = rv.output || ""
+        // run() may return parsed JSON directly or {output: string}
+        rawV = typeof rv === "object" && !rv.output ? JSON.stringify(rv) : (rv.output || "")
       } else {
         rawV = fs.readFileSync(VAULTS_PATH, "utf8")
       }
@@ -150,8 +151,8 @@ ipcMain.handle("read-wallet", async () => {
     const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
     const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
-    const rawText = r.output || ""
-    const text = rawText.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\[\d*m/g, "")
+    const rawText = (r && r.output) ? r.output : (typeof r === "string" ? r : "")
+    const text = rawText.replace(/\[[0-9;]*[mGKH]/g, "")
     // Parse: "  VUSD balance : $3.00"
     const balMatch = text.match(/VUSD balance\s*:\s*\$?([\d.,]+)/)
     const outMatch = text.match(/Outputs held\s*:\s*(\d+)/)
