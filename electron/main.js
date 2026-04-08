@@ -112,13 +112,19 @@ ipcMain.handle("read-vaults", async () => {
       let rawV
       if (IS_WIN) {
         const rv = await run("wsl.exe", ["-e", VUSD_WSL, "cat-vaults"], {})
-        // run() may return parsed JSON directly or {output: string}
-        rawV = typeof rv === "object" && !rv.output ? JSON.stringify(rv) : (rv.output || "")
+        // run() parses JSON automatically - rv IS the vault object
+        if (typeof rv === "object" && rv !== null && !rv.output) {
+          vaultData = rv
+        } else {
+          rawV = rv.output || ""
+        }
       } else {
         rawV = fs.readFileSync(VAULTS_PATH, "utf8")
       }
-      console.log("rawV type:", typeof rawV, "length:", rawV ? rawV.length : 0, "preview:", String(rawV).slice(0,50))
-      vaultData = typeof rawV === "object" ? rawV : JSON.parse(rawV)
+      if (!Object.keys(vaultData).length && rawV) {
+        console.log("rawV preview:", String(rawV).slice(0,80))
+        vaultData = JSON.parse(rawV)
+      }
       console.log("read-vaults: loaded", Object.keys(vaultData).length, "vaults")
     } catch(fe) { console.error("read-vaults file:", fe.message) }
     // For each vault, get health via CLI
@@ -149,17 +155,21 @@ ipcMain.handle("read-vaults", async () => {
 
 ipcMain.handle("read-wallet", async () => {
   try {
-    const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
-    const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
-    const r = await run(bin, args, IS_WIN ? {} : VENV)
-    const rawText = (r && r.output) ? r.output : (typeof r === "string" ? r : "")
-    const text = rawText.replace(/\[[0-9;]*[mGKH]/g, "")
-    // Parse: "  VUSD balance : $3.00"
+    if (IS_WIN) {
+      const r = await run("wsl.exe", ["-e", VUSD_WSL, "cat-wallet"], {})
+      // r is parsed JSON: {balance, outputs}
+      if (r && typeof r === "object" && r.balance !== undefined) {
+        console.log("read-wallet:", r.balance, "VUSD")
+        return { balance: r.balance, outputs: r.outputs || 0, history: [] }
+      }
+    }
+    // Linux fallback
+    const bin = path.join(app.getAppPath(), "..", "vusd")
+    const r = await run(bin, ["balance"], VENV)
+    const text = (r.output || "").replace(/\[[0-9;]*[mGKH]/g, "")
     const balMatch = text.match(/VUSD balance\s*:\s*\$?([\d.,]+)/)
     const outMatch = text.match(/Outputs held\s*:\s*(\d+)/)
-    const balance = balMatch ? parseFloat(balMatch[1].replace(/,/g,"")) : 0
-    const outputs = outMatch ? parseInt(outMatch[1]) : 0
-    return { balance, outputs, history: [] }
+    return { balance: balMatch ? parseFloat(balMatch[1].replace(/,/g,"")) : 0, outputs: outMatch ? parseInt(outMatch[1]) : 0, history: [] }
   } catch(e) { console.error("read-wallet:", e.message); return { balance: 0, outputs: 0, history: [] } }
 })
 
