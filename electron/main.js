@@ -12,12 +12,13 @@ const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
 
 function readWslFile(wslPath) {
-  // Use powershell to read WSL files reliably on Windows
   const uncPath = "\\\\wsl.localhost\\Ubuntu" + wslPath.replace(/\//g, "\\")
   try {
-    return execFileSync("powershell.exe", ["-NoProfile", "-Command", `Get-Content -Raw -Path "${uncPath}"`], { encoding: "utf8", timeout: 5000 })
+    return execFileSync("powershell.exe",
+      ["-NoProfile", "-Command", "Get-Content -Raw -Path '" + uncPath + "'"],
+      { encoding: "utf8", timeout: 5000 })
   } catch(e) {
-    // Fallback: use wsl cat
+    console.error("readWslFile powershell failed:", e.message)
     return execFileSync("wsl.exe", ["-e", "cat", wslPath], { encoding: "utf8", timeout: 5000 })
   }
 }
