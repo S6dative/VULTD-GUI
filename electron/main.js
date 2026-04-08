@@ -111,7 +111,7 @@ ipcMain.handle("read-vaults", async () => {
     try {
       let rawV
       if (IS_WIN) {
-        const rv = await run("wsl.exe", ["-e", "cat", "/home/s6d/.vusd/vaults.json"], {})
+        const rv = await run("wsl.exe", ["-e", VUSD_WSL, "cat-vaults"], {})
         rawV = rv.output || ""
       } else {
         rawV = fs.readFileSync(VAULTS_PATH, "utf8")
