@@ -117,7 +117,8 @@ ipcMain.handle("read-vaults", async () => {
       } else {
         rawV = fs.readFileSync(VAULTS_PATH, "utf8")
       }
-      vaultData = JSON.parse(rawV)
+      console.log("rawV type:", typeof rawV, "length:", rawV ? rawV.length : 0, "preview:", String(rawV).slice(0,50))
+      vaultData = typeof rawV === "object" ? rawV : JSON.parse(rawV)
       console.log("read-vaults: loaded", Object.keys(vaultData).length, "vaults")
     } catch(fe) { console.error("read-vaults file:", fe.message) }
     // For each vault, get health via CLI
