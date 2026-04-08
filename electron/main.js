@@ -12,8 +12,18 @@ const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
 
 async function readWslFile(wslPath) {
-  const r = await run("wsl.exe", ["-e", "cat", wslPath], {})
-  return r.output || ""
+  return new Promise((resolve, reject) => {
+    const proc = spawn("wsl.exe", ["-e", "cat", wslPath], { stdio: ["ignore", "pipe", "pipe"] })
+    let out = ""
+    proc.stdout.on("data", d => out += d.toString())
+    proc.stderr.on("data", () => {})
+    const t = setTimeout(() => { proc.kill(); reject(new Error("timeout")) }, 10000)
+    proc.on("close", code => {
+      clearTimeout(t)
+      if (code !== 0) return reject(new Error("cat exit " + code))
+      resolve(out)
+    })
+  })
 }
 
 function btcRpc(method, params=[], wallet="") {
