@@ -371,19 +371,6 @@ export default function Vaults() {
           </div>
         </div>
       )}
-        </div>
-
-        <div className='card' style={{ marginTop:16 }}>
-          <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>Recover a Vault</div>
-          <div style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:12 }}>
-            Vault state is stored in <code style={{fontFamily:'Geist Mono,monospace',background:'var(--card2)',padding:'1px 4px',borderRadius:3}}>~/.vusd/vaults.json</code>. Back this file up to restore vaults on a new device. Your vault keys are derived from your owner seed — keep it safe.
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <input placeholder='Paste vault ID to re-track (vault:...)' className='input mono' style={{ flex:1, fontSize:11 }} />
-            <button className='btn btn-secondary' style={{ whiteSpace:'nowrap', fontSize:12 }}>Import</button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
