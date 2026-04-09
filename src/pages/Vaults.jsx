@@ -43,7 +43,8 @@ export default function Vaults() {
 
   useEffect(() => {
     bridge.btcBalance().then(bal => {
-      if (typeof bal === 'number') setRealSats(Math.round(bal * 1e8))
+      const balNum = typeof bal === 'number' ? bal : parseFloat(bal)
+      if (!isNaN(balNum) && balNum >= 0) setRealSats(Math.round(balNum * 1e8))
     }).catch(() => {})
     bridge.readVaults().then(data => {
       if (!data) return
@@ -153,7 +154,8 @@ export default function Vaults() {
                 <span style={{ fontFamily:'Geist Mono, monospace', fontSize:32, fontWeight:700, color:preset.color }}>{ltv}%</span>
                 <div>
                   <div style={{ fontSize:13, fontWeight:600 }}>{preset.label}</div>
-                  <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{preset.sub}</div>
+                  <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{Math.round(100/(ltv/100))}% CR</div>
+                  <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{Math.round(100/(ltv/100))}% CR</div>
                 </div>
               </div>
               <input type='range' min='33' max='66' value={ltv} onChange={e => setLtv(parseInt(e.target.value))}
@@ -167,7 +169,7 @@ export default function Vaults() {
                     cursor:'pointer', textAlign:'center', transition:'all 0.12s',
                   }}>
                     <div style={{ fontSize:12, fontWeight:600, color:p.color }}>{p.ltv}%</div>
-                    <div style={{ fontSize:10, color:'var(--muted-fg)' }}>{p.sub}</div>
+                    <div style={{ fontSize:10, color:'var(--muted-fg)' }}>{Math.round(100/(p.ltv/100))}% CR</div>
                   </button>
                 ))}
               </div>
