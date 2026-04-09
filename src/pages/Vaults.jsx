@@ -155,7 +155,6 @@ export default function Vaults() {
                 <div>
                   <div style={{ fontSize:13, fontWeight:600 }}>{preset.label}</div>
                   <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{Math.round(100/(ltv/100))}% CR</div>
-                  <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{Math.round(100/(ltv/100))}% CR</div>
                 </div>
               </div>
               <input type='range' min='33' max='66' value={ltv} onChange={e => setLtv(parseInt(e.target.value))}
