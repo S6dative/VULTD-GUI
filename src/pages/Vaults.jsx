@@ -334,7 +334,7 @@ export default function Vaults() {
         </div>
       )}
 
-      {tab === 'manage' && (
+      {tab === 'manage' && (<>
         <div style={{ maxWidth:800 }}>
           {loadingVaults ? (
             <div className='card' style={{ textAlign:'center', padding:40, color:'var(--muted-fg)' }}>Loading vaults...</div>
@@ -357,7 +357,8 @@ export default function Vaults() {
                 )
               })}
             </div>
-          )}
+          </>
+      )}
         </div>
 
         <div className='card' style={{ marginTop:16 }}>
