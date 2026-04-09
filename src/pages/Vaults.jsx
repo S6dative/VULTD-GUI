@@ -92,10 +92,10 @@ export default function Vaults() {
   }
 
   const INFO_ITEMS = [
-    { key:'ltv', title:'LTV explained', body:'Loan-to-Value (LTV) is the ratio of your VUSD debt to your BTC collateral. A lower LTV means you mint less VUSD relative to your collateral — safer but less capital efficient. A higher LTV lets you mint more but increases your liquidation risk if BTC price falls.' },
+    { key:'ltv', title:'LTV explained', body:'Loan-to-Value (LTV) is the ratio of your VUSD debt to your {isSignet ? 'sBTC' : 'BTC'} collateral. A lower LTV means you mint less VUSD relative to your collateral — safer but less capital efficient. A higher LTV lets you mint more but increases your liquidation risk if BTC price falls.' },
     { key:'cr', title:'Collateral ratio & health', body:'Your collateral ratio (CR) is the inverse of LTV — it shows how well-backed your debt is. The higher your CR, the further BTC would need to fall before your vault is at risk. Monitor your vault health regularly and top up collateral or repay debt if the price moves against you.' },
-    { key:'liq', title:'Liquidation rules', body:'If your collateral ratio falls below the minimum threshold, your vault becomes eligible for liquidation by keeper bots. The keeper repays your debt and claims your BTC collateral as reward. Choose an LTV that gives you a comfortable buffer above the liquidation threshold.' },
-    { key:'liq2', title:'What happens if liquidated?', body:'When a vault is liquidated, the debt is cleared and the keeper claims the collateral. You keep any VUSD you already minted and spent, but lose your locked BTC. The best protection is a conservative LTV and watching your liquidation price relative to the current BTC price.' },
+    { key:'liq', title:'Liquidation rules', body:'If your collateral ratio falls below the minimum threshold, your vault becomes eligible for liquidation by keeper bots. The keeper repays your debt and claims your {isSignet ? 'sBTC' : 'BTC'} collateral as reward. Choose an LTV that gives you a comfortable buffer above the liquidation threshold.' },
+    { key:'liq2', title:'What happens if liquidated?', body:'When a vault is liquidated, the debt is cleared and the keeper claims the collateral. You keep any VUSD you already minted and spent, but lose your locked {isSignet ? 'sBTC' : 'BTC'}. The best protection is a conservative LTV and watching your liquidation price relative to the current BTC price.' },
     { key:'fee', title:'Redemption fee (52k blocks)', body:'VUSD holders can redeem their VUSD directly against vaults in the system, starting with the lowest collateral ratio vault. If your vault is redeemed against, your debt decreases and collateral is returned proportionally. A time-based fee discourages redemption against newly opened vaults.' },
     { key:'keeper', title:'Keeper bots', body:'Keepers are permissionless bots that scan vaults and liquidate any that fall below the minimum CR. Anyone can run a keeper using the vusd keeper run command. Keepers earn a bonus from the liquidated collateral as an incentive to keep the protocol solvent.' },
     { key:'dust', title:'Minimum vault size', body:'There is a minimum collateral requirement to open a vault, plus a small one-time open fee deducted from your collateral. Vaults below the minimum size cannot be opened or may be automatically closed if collateral falls too low.' },
@@ -131,7 +131,7 @@ export default function Vaults() {
             {/* BTC Collateral */}
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>BTC Collateral</div>
-              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>{isSignet ? "Enter the amount of sBTC to deposit as collateral" : "Enter the amount of BTC to deposit as collateral"}</div>
+              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>{isSignet ? "Enter the amount of sBTC to deposit as collateral" : isSignet ? 'Enter the amount of sBTC to deposit as collateral' : 'Enter the amount of BTC to deposit as collateral'}</div>
               <div style={{ position:'relative' }}>
                 <input value={btcAmount} onChange={e => setBtcAmount(e.target.value)} type='number'
                   placeholder='0.00000000' step='0.00001' min='0'
@@ -203,7 +203,7 @@ export default function Vaults() {
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
-              <SummaryRow label='After Fees' value={btcVal > 0 ? (btcVal - networkFee).toFixed(8)+' BTC locked' : '--'} />
+              <SummaryRow label='After Fees' value={btcVal > 0 ? (btcVal - networkFee).toFixed(8)+isSignet ? ' sBTC locked' : ' BTC locked' : '--'} />
               <SummaryRow label='Network Fee' value={networkFee.toFixed(8)+(isSignet ? " sBTC" : " BTC")} />
               <SummaryRow label='System Fee' value={btcVal > 0 ? fmt(systemFee) : '--'} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0' }}>

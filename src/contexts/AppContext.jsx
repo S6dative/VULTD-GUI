@@ -24,7 +24,10 @@ export function AppProvider({ children }) {
   const refreshBtcAddress = async (force=false) => {
     try {
       const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
-      if (w.address && !force) return  // keep existing address
+      if (w.address && !force) {
+        setWallet(prev => ({ ...prev, address: w.address }))
+        return
+      }
       const res = await bridge.btcAddress()
       const addr = typeof res === 'string' ? res.trim() : res?.output?.trim() || ''
       if (addr && (addr.startsWith('tb1') || addr.startsWith('bc1'))) {

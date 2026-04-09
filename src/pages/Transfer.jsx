@@ -42,7 +42,7 @@ function TabBar({ tabs, active, onChange }) {
 function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPrice }) {
   const btcUsd = btcPrice ? (btcSats/100000000)*btcPrice : 0
   const assets = [
-    { id:'btc',  label:'Bitcoin', sub: btcSats > 0 ? sats(btcSats) : '0 sats', value: fmt(btcUsd), icon:Bitcoin, color:'var(--btc)', bg:'var(--btc-dim)' },
+    { id:'btc',  label: isSignet ? 'sBTC (Signet)' : 'Bitcoin', sub: btcSats > 0 ? sats(btcSats) : '0 sats', value: fmt(btcUsd), icon:Bitcoin, color:'var(--btc)', bg:'var(--btc-dim)' },
     { id:'vusd', label:'VUSD',    sub:'Private stablecoin',                       value: fmt(vusdBalance), icon:DollarSign, color:'var(--fg-dim)', bg:'var(--card3)' },
   ]
   return (
@@ -128,7 +128,7 @@ function SendPanel({ wallet, network }) {
       )}
 
       <div>
-        <span className="label">{isBtc ? 'Bitcoin Address' : 'VUSD Stealth Address'}</span>
+        <span className="label">{isBtc ? isSignet ? 'sBTC Address (Signet)' : 'Bitcoin Address' : 'VUSD Stealth Address'}</span>
         <input value={to} onChange={e => setTo(e.target.value)}
           placeholder={isBtc ? (network==='signet' ? 'tb1q...' : 'bc1q...') : 'vusd:...'}
           className="input mono"
@@ -142,7 +142,7 @@ function SendPanel({ wallet, network }) {
       </div>
 
       <div>
-        <span className="label">{isBtc ? 'Amount (BTC)' : 'Amount (USD)'}</span>
+        <span className="label">{isBtc ? isSignet ? 'Amount (sBTC)' : 'Amount (BTC)' : 'Amount (USD)'}</span>
         <div style={{ position:'relative' }}>
           <input value={amount} onChange={e => setAmount(e.target.value)} type="number"
             placeholder={isBtc ? '0.00000000' : '0.00'}
@@ -203,7 +203,7 @@ function ReceivePanel({ wallet }) {
         <span className="label">Asset</span>
         <div style={{ display:'flex', gap:8 }}>
           {[
-            { id:'btc',  label:'Bitcoin',  icon:Bitcoin,     color:'var(--btc)',     bg:'var(--btc-dim)' },
+            { id:'btc',  label: isSignet ? 'sBTC (Signet)' : 'Bitcoin',  icon:Bitcoin,     color:'var(--btc)',     bg:'var(--btc-dim)' },
             { id:'vusd', label:'VUSD',     icon:DollarSign,  color:'var(--fg-dim)',  bg:'var(--card3)' },
           ].map(a => (
             <button key={a.id} onClick={() => setAsset(a.id)} style={{
