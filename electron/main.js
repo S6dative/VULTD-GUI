@@ -100,7 +100,7 @@ ipcMain.handle("btc-address", async () => {
 })
 
 ipcMain.handle("bitcoin-cli", async (_, args) => {
-  try { return await btcRpc(args[0], args.slice(1)) } catch(e) { return {} }
+  try { return await btcRpc(args[0], args.slice(1), "vusd") } catch(e) { console.error("bitcoin-cli:", e.message); return { error: e.message } }
 })
 
 ipcMain.handle("read-vaults", async () => {

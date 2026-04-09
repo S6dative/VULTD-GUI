@@ -39,8 +39,8 @@ function TabBar({ tabs, active, onChange }) {
   )
 }
 
-function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPrice }) {
-  const btcUsd = btcPrice ? (btcSats/100000000)*btcPrice : 0
+function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPriceVal }) {
+  const btcUsd = btcPriceVal ? (btcSats/100000000)*btcPriceVal : 0
   const assets = [
     { id:'btc',  label: isSignet ? 'sBTC (Signet)' : 'Bitcoin', sub: btcSats > 0 ? sats(btcSats) : '0 sats', value: fmt(btcUsd), icon:Bitcoin, color:'var(--btc)', bg:'var(--btc-dim)' },
     { id:'vusd', label:'VUSD',    sub:'Private stablecoin',                       value: fmt(vusdBalance), icon:DollarSign, color:'var(--fg-dim)', bg:'var(--card3)' },
@@ -73,13 +73,13 @@ function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPrice }) {
 }
 
 // ── Send Panel ────────────────────────────────────────────────────────────────
-function SendPanel({ wallet, network }) {
+function SendPanel({ wallet, network, btcPrice }) {
   const [asset, setAsset] = useState('btc')
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState(null)
-  const [btcPrice] = useState(85000)
+  const btcPriceVal = btcPrice || 85000
 
   const btcSats = wallet?.btcSats || 0
   const vusdBalance = wallet?.vusdBalance || 0
@@ -99,8 +99,7 @@ function SendPanel({ wallet, network }) {
       if (isBtc) {
         // bitcoin-cli sendtoaddress
         const btcAmt = sendValue.toFixed(8)
-        await bridge.bitcoinCli ? window.electron?.bitcoinCli(['sendtoaddress', to, btcAmt])
-          : Promise.reject(new Error('Not in Electron'))
+        await window.electron.bitcoinCli(['sendtoaddress', to, parseFloat(btcAmt)])
       } else {
         await bridge.send(to, sendValue)
       }
@@ -115,7 +114,7 @@ function SendPanel({ wallet, network }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <AssetSelector value={asset} onChange={a => { setAsset(a); setTo(''); setAmount(''); setStatus(null) }}
-        btcSats={btcSats} vusdBalance={vusdBalance} btcPrice={btcPrice} />
+        btcSats={btcSats} vusdBalance={vusdBalance} btcPriceVal={btcPriceVal} />
 
       {/* Privacy notice for VUSD */}
       {!isBtc && (
@@ -280,7 +279,7 @@ function ReceivePanel({ wallet }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Transfer() {
-  const { wallet, network } = useApp()
+  const { wallet, network, btcPrice } = useApp()
   const [tab, setTab] = useState('send')
 
   const tabs = [
@@ -299,7 +298,7 @@ export default function Transfer() {
 
       <div className="card">
         {tab === 'send'
-          ? <SendPanel wallet={wallet} network={network} />
+          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} />
           : <ReceivePanel wallet={wallet} />}
       </div>
 

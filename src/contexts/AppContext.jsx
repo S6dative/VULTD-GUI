@@ -8,7 +8,12 @@ export function AppProvider({ children }) {
   const [network, setNetwork] = useState(() => localStorage.getItem('vultd-network') || 'signet')
   const [unlocked, setUnlocked] = useState(false)
   const [hasWallet, setHasWallet] = useState(() => !!localStorage.getItem('vultd-wallet-exists'))
-  const [wallet, setWallet] = useState(null)
+  const [btcPrice, setBtcPrice] = useState(() => parseFloat(localStorage.getItem('vultd-btcprice') || '85000'))
+  const [wallet, setWallet] = useState(() => {
+    const stored = localStorage.getItem('vultd-wallet')
+    if (stored) try { return JSON.parse(stored) } catch {}
+    return null
+  })
 
   useEffect(() => {
     localStorage.setItem('vultd-theme', theme)
@@ -104,6 +109,7 @@ export function AppProvider({ children }) {
       network, setNetwork,
       unlocked, lock, unlock, setupPin,
       hasWallet, wallet, createWallet, recoverWallet,
+      btcPrice, setBtcPrice,
 
     }}>
       {children}
