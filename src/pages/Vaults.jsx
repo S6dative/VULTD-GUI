@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp, Eye, EyeOff, Copy } from 'lucide-react'
+import { useState as uS } from 'react'
 import { bridge } from '../bridge/vusd'
 import { useApp } from '../contexts/AppContext'
 
@@ -20,6 +21,91 @@ function SummaryRow({ label, value, color }) {
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
       <span style={{ fontSize:13, color:'var(--muted-fg)' }}>{label}</span>
       <span style={{ fontSize:13, fontFamily:'Geist Mono, monospace', fontWeight:500, color:color||'var(--fg)' }}>{value}</span>
+    </div>
+  )
+}
+
+function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice }) {
+  const [expanded, setExpanded] = uS(false)
+  const [showPubkey, setShowPubkey] = uS(false)
+  const [copied, setCopied] = uS(false)
+  const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
+
+  const copy = (text) => {
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+  }
+
+  return (
+    <div className='card'>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ width:40, height:40, borderRadius:10, background:'var(--card2)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid var(--border)' }}>
+            {v.state==='Open' || v.state==='Active' ? <Lock size={16} style={{color:'var(--fg)'}} /> : <Unlock size={16} style={{color:'var(--muted-fg)'}} />}
+          </div>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+              <span style={{ fontFamily:'Geist Mono, monospace', fontSize:12, fontWeight:600 }}>{v.id.slice(0,14)}...{v.id.slice(-8)}</span>
+              <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, background:stateBg, color:stateColor, fontWeight:500 }}>{v.state}</span>
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>{(v.collateralSats||0).toLocaleString()} sats</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          {health && <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:10, color:'var(--muted-fg)', marginBottom:2 }}>Health</div>
+            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:700, fontSize:18, color: health>=200?'var(--success)':health>=150?'var(--warning)':'var(--danger)' }}>{health}%</div>
+          </div>}
+          <button onClick={() => setExpanded(!expanded)} style={{ background:'var(--card2)', border:'1px solid var(--border)', borderRadius:6, padding:'4px 8px', cursor:'pointer', color:'var(--muted-fg)' }}>
+            {expanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom: expanded?16:0 }}>
+        {[
+          { label: isSignet ? 'sBTC Collateral' : 'BTC Collateral', value: fmt(collUsd) },
+          { label:'Debt', value: fmt(v.debt||0) },
+          { label:'Health', value: health ? health+'%' : 'No debt', color: health ? (health>=200?'var(--success)':health>=150?'var(--warning)':'var(--danger)') : 'var(--muted-fg)' },
+        ].map(s => (
+          <div key={s.label} style={{ background:'var(--card2)', borderRadius:8, padding:'10px 12px' }}>
+            <div style={{ fontSize:11, color:'var(--muted-fg)', marginBottom:4 }}>{s.label}</div>
+            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:14, color:s.color||'var(--fg)' }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {expanded && (
+        <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, display:'flex', flexDirection:'column', gap:10 }}>
+          {[
+            { label:'Full Vault ID', value: v.id, mono:true, copyable:true },
+            { label:'Opened', value: v.openedAt ? new Date(v.openedAt*1000).toLocaleString() : '--' },
+            { label:'Last Updated', value: v.lastUpdated ? new Date(v.lastUpdated*1000).toLocaleString() : '--' },
+            { label:'Open Fee Paid', value: v.openFeeSats ? v.openFeeSats.toLocaleString()+' sats' : '--' },
+            { label:'Liq. Price', value: v.liqPrice ? '$'+v.liqPrice.toLocaleString() : '--', color:'var(--danger)' },
+            { label:'Collateral Ratio', value: v.cr ? v.cr+'%' : '--', color: v.cr ? (v.cr>=200?'var(--success)':v.cr>=150?'var(--warning)':'var(--danger)') : undefined },
+            { label:'Taproot TXID', value: v.taprootTxid || '--', mono:true },
+          ].map(row => (
+            <div key={row.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12 }}>
+              <span style={{ color:'var(--muted-fg)', flexShrink:0 }}>{row.label}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontFamily: row.mono?'Geist Mono, monospace':'inherit', color: row.color||'var(--fg)', maxWidth:260, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:11 }}>{row.value}</span>
+                {row.copyable && <button onClick={() => copy(row.value)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted-fg)', padding:2 }}><Copy size={11}/></button>}
+              </div>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12 }}>
+            <span style={{ color:'var(--muted-fg)' }}>Owner Pubkey</span>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ fontFamily:'Geist Mono, monospace', fontSize:11, color:'var(--fg)' }}>
+                {showPubkey ? (v.ownerPubkey||'--') : '••••••••••••••••...'}
+              </span>
+              <button onClick={() => setShowPubkey(!showPubkey)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted-fg)', padding:2 }}>
+                {showPubkey ? <EyeOff size={13}/> : <Eye size={13}/>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -82,6 +168,12 @@ export default function Vaults() {
         const entries = Object.entries(data)
         setVaults(entries.map(([id, v]) => ({
           id: String(id || ''), state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+        lastUpdated: v.last_updated || 0,
+        openFeeSats: v.open_fee_paid_sats || 0,
+        ownerPubkey: v.owner_pubkey || '',
+        taprootTxid: v.taproot_txid || '',
+        cr: v.cr || null,
+        liqPrice: v.liq_price || null,
           collateralSats: v.locked_btc || 0, debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0), openedAt: v.open_timestamp || 0,
         })))
       }
@@ -261,42 +353,23 @@ export default function Vaults() {
                 const stateBg = v.state==='Open' || v.state==='Active' || v.state==='Active'?'var(--success-dim)':v.state==='Repaid'?'var(--warning-dim)':'var(--card3)'
                 const health = v.collateralSats && v.debt > 0 ? Math.round((v.collateralSats/1e8*btcPrice)/v.debt*100) : null
                 return (
-                  <div key={v.id} className='card'>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                        <div style={{ width:40, height:40, borderRadius:10, background:'var(--card2)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid var(--border)' }}>
-                          {v.state==='Open' || v.state==='Active' || v.state==='Active' ? <Lock size={16} style={{color:'var(--fg)'}} /> : <Unlock size={16} style={{color:'var(--muted-fg)'}} />}
-                        </div>
-                        <div>
-                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                            <span style={{ fontFamily:'Geist Mono, monospace', fontSize:12, fontWeight:600 }}>{truncate(v.id)}</span>
-                            <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, background:stateBg, color:stateColor, fontWeight:500 }}>{v.state}</span>
-                          </div>
-                          <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>{v.collateralSats.toLocaleString()} sats</div>
-                        </div>
-                      </div>
-                      {health && <div style={{ textAlign:'right' }}>
-                        <div style={{ fontSize:10, color:'var(--muted-fg)', marginBottom:2 }}>Health</div>
-                        <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:700, fontSize:18, color:healthColor(health) }}>{health}%</div>
-                      </div>}
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-                      {[
-                        { label:'Collateral', value:fmt(collUsd) },
-                        { label:'Debt', value:fmt(v.debt) },
-                        { label:'Health', value:health?health+'%':'No debt', color:health?healthColor(health):'var(--muted-fg)' },
-                      ].map(s => (
-                        <div key={s.label} style={{ background:'var(--card2)', borderRadius:8, padding:'10px 12px' }}>
-                          <div style={{ fontSize:11, color:'var(--muted-fg)', marginBottom:4 }}>{s.label}</div>
-                          <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:14, color:s.color||'var(--fg)' }}>{s.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <VaultCard key={v.id} v={v} collUsd={collUsd} health={health} stateColor={stateColor} stateBg={stateBg} isSignet={isSignet} btcPrice={btcPrice} />
                 )
               })}
             </div>
           )}
+        </div>
+
+        {/* Recover Vault */}
+        <div className='card' style={{ marginTop:16 }}>
+          <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>Recover a Vault</div>
+          <div style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:12 }}>
+            Vault state is stored in <code style={{fontFamily:'Geist Mono,monospace',background:'var(--card2)',padding:'1px 4px',borderRadius:3}}>~/.vusd/vaults.json</code>. Back this file up to restore vaults on a new device. Your vault keys are derived from your owner seed — keep it safe.
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <input placeholder='Paste vault ID to re-track (vault:...)' className='input mono' style={{ flex:1, fontSize:11 }} />
+            <button className='btn btn-secondary' style={{ whiteSpace:'nowrap', fontSize:12 }}>Import</button>
+          </div>
         </div>
       )}
     </div>
