@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [priceChange, setPriceChange] = useState(null)
   const [priceLoading, setPriceLoading] = useState(true)
   const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
+  const [vusdBal, setVusdBal] = useState(0)
   const [generating, setGenerating] = useState(false)
 
   const handleGenerate = async () => {
@@ -49,7 +50,6 @@ export default function Dashboard() {
         const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
         w.address = addr
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
-        refreshWallet()
       }
     } catch(e) { console.error('generate:', e) }
     setGenerating(false)
@@ -86,7 +86,6 @@ export default function Dashboard() {
         const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
         w.btcSats = s
         localStorage.setItem("vultd-wallet", JSON.stringify(w))
-        refreshWallet()
       }
     }).catch(() => {})
     bridge.readWallet().then(data => {
@@ -95,7 +94,7 @@ export default function Dashboard() {
         const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
         w.vusdBalance = data.balance
         localStorage.setItem("vultd-wallet", JSON.stringify(w))
-        refreshWallet()
+        setVusdBal(data.balance)
       }
       if (data?.history) setTxHistory(data.history)
     }).catch(() => {})
@@ -116,7 +115,7 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [])
 
-  const vusdBalance = wallet?.vusdBalance || 0
+  const vusdBalance = vusdBal || wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
   const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active')
   const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
