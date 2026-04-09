@@ -99,6 +99,8 @@ export default function Vaults() {
     { key:'fee', title:'Redemption fee (52k blocks)', body:'VUSD holders can redeem their VUSD directly against vaults in the system, starting with the lowest collateral ratio vault. If your vault is redeemed against, your debt decreases and collateral is returned proportionally. A time-based fee discourages redemption against newly opened vaults.' },
     { key:'keeper', title:'Keeper bots', body:'Keepers are permissionless bots that scan vaults and liquidate any that fall below the minimum CR. Anyone can run a keeper using the vusd keeper run command. Keepers earn a bonus from the liquidated collateral as an incentive to keep the protocol solvent.' },
     { key:'dust', title:'Minimum vault size', body:'There is a minimum collateral requirement to open a vault, plus a small one-time open fee deducted from your collateral. Vaults below the minimum size cannot be opened or may be automatically closed if collateral falls too low.' },
+  ]
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
