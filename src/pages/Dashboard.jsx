@@ -104,6 +104,14 @@ export default function Dashboard() {
         collateralSats: v.locked_btc || 0, debt: v.debt_vusd > 1000 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
       }))
       setVaults(normalized)
+      // Build activity from vault events
+      const activity = []
+      normalized.forEach(v => {
+        if (v.openedAt) activity.push({ type:'vault_open', ts:v.openedAt, sats:v.collateralSats, vault:v.id })
+        if (v.debt > 0) activity.push({ type:'mint', ts:v.openedAt+60, amount:v.debt, vault:v.id })
+      })
+      activity.sort((a,b) => b.ts - a.ts)
+      if (activity.length > 0) setTxHistory(activity)
     }).catch(() => {})
   }
 
@@ -291,22 +299,29 @@ export default function Dashboard() {
             <div style={{ fontSize:13, marginBottom:4 }}>No activity yet</div>
             <div style={{ fontSize:12 }}>Transactions will appear here</div>
           </div>
-        ) : txHistory.map((tx, i) => (
-          <div key={i} className='card2' style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: i < txHistory.length-1 ? 6 : 0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ width:32, height:32, borderRadius:'50%', background: tx.spent ? 'var(--danger-dim)' : 'var(--success-dim)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {tx.spent ? <ArrowUpRight size={14} style={{color:'var(--danger)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
+        ) : txHistory.map((tx, i) => {
+          const isOpen = tx.type === 'vault_open'
+          const isMint = tx.type === 'mint'
+          const label = isOpen ? 'Vault Opened' : isMint ? 'VUSD Minted' : tx.spent ? 'Sent VUSD' : 'Received VUSD'
+          const color = isOpen ? 'var(--btc)' : 'var(--success)'
+          const bg = isOpen ? 'var(--warning-dim)' : 'var(--success-dim)'
+          const value = isOpen ? (tx.sats||0).toLocaleString()+' sats locked' : '+'+fmt(tx.amount||0)+' VUSD'
+          const ts = tx.ts || tx.received_at
+          return (
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom: i < txHistory.length-1 ? '1px solid var(--border)' : 'none' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  {isOpen ? <Lock size={14} style={{color:'var(--btc)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
+                </div>
+                <div>
+                  <div style={{ fontWeight:500, fontSize:13 }}>{label}</div>
+                  <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{ts ? new Date(ts*1000).toLocaleDateString() : ''}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight:500, fontSize:13 }}>{tx.spent ? 'Sent VUSD' : 'Received VUSD'}</div>
-                <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{new Date(tx.received_at*1000).toLocaleDateString()}</div>
-              </div>
+              <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color }}>{value}</div>
             </div>
-            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color: tx.spent ? 'var(--danger)' : 'var(--success)' }}>
-              {tx.spent ? '-' : '+'}{fmt(tx.amount)}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
