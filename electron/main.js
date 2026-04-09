@@ -122,10 +122,8 @@ ipcMain.handle("read-vaults", async () => {
         rawV = fs.readFileSync(VAULTS_PATH, "utf8")
       }
       if (!Object.keys(vaultData).length && rawV) {
-        console.log("rawV preview:", String(rawV).slice(0,80))
         vaultData = JSON.parse(rawV)
       }
-      console.log("read-vaults: loaded", Object.keys(vaultData).length, "vaults")
     } catch(fe) { console.error("read-vaults file:", fe.message) }
     // For each vault, get health via CLI
     const result = {}
@@ -159,7 +157,6 @@ ipcMain.handle("read-wallet", async () => {
       const r = await run("wsl.exe", ["-e", VUSD_WSL, "cat-wallet"], {})
       // r is parsed JSON: {balance, outputs}
       if (r && typeof r === "object" && r.balance !== undefined) {
-        console.log("read-wallet:", r.balance, "VUSD")
         return { balance: r.balance, outputs: r.outputs || 0, history: [] }
       }
     }

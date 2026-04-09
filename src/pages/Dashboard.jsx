@@ -89,7 +89,6 @@ export default function Dashboard() {
       }
     }).catch(() => {})
     bridge.readWallet().then(data => {
-      console.log('readWallet response:', JSON.stringify(data).slice(0,150))
       if (data?.balance != null) {
         const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
         w.vusdBalance = data.balance
@@ -99,7 +98,6 @@ export default function Dashboard() {
       if (data?.history) setTxHistory(data.history)
     }).catch(() => {})
     bridge.readVaults().then(data => {
-      console.log('readVaults response:', JSON.stringify(data).slice(0,150))
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
         id: v.vault_id || id, state: v.state || "Unknown",
