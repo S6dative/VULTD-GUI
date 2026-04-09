@@ -92,13 +92,13 @@ export default function Vaults() {
   }
 
   const INFO_ITEMS = [
-    { key:'ltv', title:'LTV explained', body:'Loan-to-Value ratio determines how much VUSD you can mint relative to your BTC collateral. Lower LTV means safer vault and lower liquidation risk.' },
-    { key:'fee', title:'52k-block redemption fee', body:'A redemption fee applies if your vault is redeemed within the first 52,000 blocks (~1 year). This fee starts at 0% and decreases over time.' },
-    { key:'liq', title:'Liquidation rules', body:'If your collateral ratio drops below 110%, your vault becomes eligible for liquidation. Keepers can liquidate undercollateralized vaults to maintain system solvency.' },
-    { key:'liq2', title:'What happens if liquidated?', body:"If your CR drops below 110%, keepers can liquidate your vault — they repay your VUSD debt and claim your BTC at a discount. You keep minted VUSD but lose locked BTC. Stay above 150% CR to be safe." },
-    { key:'dust', title:'Dust thresholds', body:'Minimum vault size is 10,000 sats collateral. Vaults below the dust threshold cannot be opened or may be automatically closed.' },
-  ]
-
+    { key:'ltv', title:'LTV explained', body:'Loan-to-Value (LTV) is the ratio of your VUSD debt to your BTC collateral. A lower LTV means you mint less VUSD relative to your collateral — safer but less capital efficient. A higher LTV lets you mint more but increases your liquidation risk if BTC price falls.' },
+    { key:'cr', title:'Collateral ratio & health', body:'Your collateral ratio (CR) is the inverse of LTV — it shows how well-backed your debt is. The higher your CR, the further BTC would need to fall before your vault is at risk. Monitor your vault health regularly and top up collateral or repay debt if the price moves against you.' },
+    { key:'liq', title:'Liquidation rules', body:'If your collateral ratio falls below the minimum threshold, your vault becomes eligible for liquidation by keeper bots. The keeper repays your debt and claims your BTC collateral as reward. Choose an LTV that gives you a comfortable buffer above the liquidation threshold.' },
+    { key:'liq2', title:'What happens if liquidated?', body:'When a vault is liquidated, the debt is cleared and the keeper claims the collateral. You keep any VUSD you already minted and spent, but lose your locked BTC. The best protection is a conservative LTV and watching your liquidation price relative to the current BTC price.' },
+    { key:'fee', title:'Redemption fee (52k blocks)', body:'VUSD holders can redeem their VUSD directly against vaults in the system, starting with the lowest collateral ratio vault. If your vault is redeemed against, your debt decreases and collateral is returned proportionally. A time-based fee discourages redemption against newly opened vaults.' },
+    { key:'keeper', title:'Keeper bots', body:'Keepers are permissionless bots that scan vaults and liquidate any that fall below the minimum CR. Anyone can run a keeper using the vusd keeper run command. Keepers earn a bonus from the liquidated collateral as an incentive to keep the protocol solvent.' },
+    { key:'dust', title:'Minimum vault size', body:'There is a minimum collateral requirement to open a vault, plus a small one-time open fee deducted from your collateral. Vaults below the minimum size cannot be opened or may be automatically closed if collateral falls too low.' },
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
