@@ -334,8 +334,8 @@ export default function Vaults() {
         </div>
       )}
 
-      {tab === 'manage' && (<>
-        <div style={{ maxWidth:800 }}>
+      {tab === 'manage' && (
+        <div style={{ maxWidth:800, display:'flex', flexDirection:'column', gap:16 }}>
           {loadingVaults ? (
             <div className='card' style={{ textAlign:'center', padding:40, color:'var(--muted-fg)' }}>Loading vaults...</div>
           ) : vaults.length === 0 ? (
@@ -349,15 +349,27 @@ export default function Vaults() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {vaults.map(v => {
                 const collUsd = (v.collateralSats/1e8)*btcPrice
-                const stateColor = v.state==='Open' || v.state==='Active' || v.state==='Active'?'var(--success)':v.state==='Repaid'?'var(--warning)':'var(--muted-fg)'
-                const stateBg = v.state==='Open' || v.state==='Active' || v.state==='Active'?'var(--success-dim)':v.state==='Repaid'?'var(--warning-dim)':'var(--card3)'
+                const stateColor = v.state==='Open' || v.state==='Active' ? 'var(--success)' : v.state==='Repaid' ? 'var(--warning)' : 'var(--muted-fg)'
+                const stateBg = v.state==='Open' || v.state==='Active' ? 'var(--success-dim)' : v.state==='Repaid' ? 'var(--warning-dim)' : 'var(--card3)'
                 const health = v.collateralSats && v.debt > 0 ? Math.round((v.collateralSats/1e8*btcPrice)/v.debt*100) : null
                 return (
                   <VaultCard key={v.id} v={v} collUsd={collUsd} health={health} stateColor={stateColor} stateBg={stateBg} isSignet={isSignet} btcPrice={btcPrice} />
                 )
               })}
             </div>
-          </>
+          )}
+
+          <div className='card'>
+            <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>Recover a Vault</div>
+            <div style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:12 }}>
+              Vault state is stored in <code style={{fontFamily:'Geist Mono,monospace',background:'var(--card2)',padding:'1px 4px',borderRadius:3}}>~/.vusd/vaults.json</code>. Back this up to restore on a new device. Your vault keys derive from your owner seed — keep it safe.
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <input placeholder='Paste vault ID to re-track (vault:...)' className='input mono' style={{ flex:1, fontSize:11 }} />
+              <button className='btn btn-secondary' style={{ whiteSpace:'nowrap', fontSize:12 }}>Import</button>
+            </div>
+          </div>
+        </div>
       )}
         </div>
 
