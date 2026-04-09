@@ -360,7 +360,6 @@ export default function Vaults() {
           )}
         </div>
 
-        {/* Recover Vault */}
         <div className='card' style={{ marginTop:16 }}>
           <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>Recover a Vault</div>
           <div style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:12 }}>
