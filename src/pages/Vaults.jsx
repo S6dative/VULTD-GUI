@@ -95,6 +95,7 @@ export default function Vaults() {
     { key:'ltv', title:'LTV explained', body:'Loan-to-Value ratio determines how much VUSD you can mint relative to your BTC collateral. Lower LTV means safer vault and lower liquidation risk.' },
     { key:'fee', title:'52k-block redemption fee', body:'A redemption fee applies if your vault is redeemed within the first 52,000 blocks (~1 year). This fee starts at 0% and decreases over time.' },
     { key:'liq', title:'Liquidation rules', body:'If your collateral ratio drops below 110%, your vault becomes eligible for liquidation. Keepers can liquidate undercollateralized vaults to maintain system solvency.' },
+    { key:'liq2', title:'What happens if liquidated?', body:"If your CR drops below 110%, keepers can liquidate your vault — they repay your VUSD debt and claim your BTC at a discount. You keep minted VUSD but lose locked BTC. Stay above 150% CR to be safe." },
     { key:'dust', title:'Dust thresholds', body:'Minimum vault size is 10,000 sats collateral. Vaults below the dust threshold cannot be opened or may be automatically closed.' },
   ]
 
@@ -200,6 +201,7 @@ export default function Vaults() {
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
+              <SummaryRow label='After Fees' value={btcVal > 0 ? (btcVal - networkFee).toFixed(8)+' BTC locked' : '--'} />
               <SummaryRow label='Network Fee' value={networkFee.toFixed(8)+(isSignet ? " sBTC" : " BTC")} />
               <SummaryRow label='System Fee' value={btcVal > 0 ? fmt(systemFee) : '--'} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0' }}>
