@@ -34,6 +34,7 @@ export const bridge = {
   closeVault:      (vault)         => ipc('vusd', ['close', '--vault', vault]),
   health:          (vault)         => ipc('vusd', ['health', '--vault', vault]),
   send:            (to, amount)    => ipc('vusd', ['send', '--to', to, '--amount', String(amount)]),
+  listTransactions: ()              => ipc('listTransactions'),
 }
 
 export const vusd = bridge

@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld("electron", {
   readWallet:  ()        => ipcRenderer.invoke("read-wallet"),
   vusdOracle:  ()        => ipcRenderer.invoke("vusd-oracle-parsed"),
   nodeInfo:    ()        => ipcRenderer.invoke("node-info"),
+  listTransactions: () => ipcRenderer.invoke("list-transactions"),
   shell: { openExternal: (url) => shell.openExternal(url) },
 })

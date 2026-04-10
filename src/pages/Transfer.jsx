@@ -318,10 +318,7 @@ export default function Transfer() {
         <div style={{ fontSize:11, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:14 }}>
           Transfer History
         </div>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 0', color:'var(--muted-fg)', textAlign:'center' }}>
-          <div style={{ fontSize:13, marginBottom:4 }}>No transfers yet</div>
-          <div style={{ fontSize:12 }}>Bitcoin and VUSD transfers will appear here</div>
-        </div>
+          <TransferHistory />
       </div>
     </div>
   )

@@ -198,6 +198,21 @@ ipcMain.handle("node-info", async () => {
   } catch { return { blockcount: null, peers: 0 } }
 })
 
+ipcMain.handle("list-transactions", async () => {
+  try {
+    const txs = await btcRpc("listtransactions", ["*", 20], "vusd")
+    return txs.reverse().map(tx => ({
+      txid: tx.txid,
+      category: tx.category,
+      amount: tx.amount,
+      fee: tx.fee || 0,
+      confirmations: tx.confirmations,
+      time: tx.time,
+      address: tx.address,
+    }))
+  } catch(e) { return [] }
+})
+
 ipcMain.handle("faucet", async (_, address) => {
   try { return await btcRpc("sendtoaddress", [address, 0.0001], "vusd") } catch(e) { return { error: e.message } }
 })
