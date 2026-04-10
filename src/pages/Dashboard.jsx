@@ -233,8 +233,8 @@ export default function Dashboard() {
             {[
               { icon: Bitcoin, color: 'var(--btc)', bg: 'var(--btc-dim)', label: isSignet ? 'sBTC' : 'BTC', sub: sats(btcSats), value: fmt(btcUsd), badge: isSignet ? 'SIGNET' : null, badgeClass: 'badge-warning' , asset: 'btc' },
               { icon: DollarSign, color: 'var(--fg-dim)', bg: 'var(--card3)', label: 'VUSD', sub: 'Private stablecoin', value: fmt(vusdBalance), badge: null, asset: 'vusd' },
-            ].map(({ icon: Icon, color, bg, label, sub, value, badge, badgeClass }) => (
-              <div key={label} className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            ].map(({ icon: Icon, color, bg, label, sub, value, badge, badgeClass, asset }) => (
+              <div key={label} onClick={() => navigate('/transfer?asset=' + asset)} className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon size={14} style={{ color }} />
