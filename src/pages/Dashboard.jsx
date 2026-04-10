@@ -182,7 +182,7 @@ export default function Dashboard() {
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Your Bitcoin Address
+            {isSignet ? 'Your Signet Address (sBTC)' : 'Your Bitcoin Address'}
           </div>
           <span className={'badge ' + (isSignet ? 'badge-warning' : 'badge-btc')}>{isSignet ? 'SIGNET' : 'MAINNET'}</span>
         </div>

@@ -104,7 +104,7 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
         const btcAmt = sendValue.toFixed(8)
         await window.electron.bitcoinCli(['sendtoaddress', to, parseFloat(btcAmt)])
       } else {
-        await bridge.send(to, sendValue)
+        throw new Error('VUSD transfers require Lightning (LND). Connect your Lightning node in Settings to enable VUSD sends.')
       }
       setStatus({ ok:true, msg: isBtc ? `Sent ${sendValue} BTC to ${to.slice(0,16)}...` : 'VUSD sent over Lightning!' })
       setTo(''); setAmount('')
@@ -177,9 +177,12 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
 }
 
 // ── Receive Panel ─────────────────────────────────────────────────────────────
-function ReceivePanel({ wallet }) {
+function ReceivePanel({ wallet, defaultAsset }) {
   const [asset, setAsset] = useState(defaultAsset || 'btc')
-  const [vusdAddr, setVusdAddr] = useState(wallet?.vusdAddress || '')
+  const [vusdAddr, setVusdAddr] = useState(() => {
+    const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+    return w.vusdAddress || wallet?.vusdAddress || ''
+  })
   const [genning, setGenning] = useState(false)
   const btcAddr = wallet?.address || ''
   const isBtc = asset === 'btc'
@@ -189,7 +192,8 @@ function ReceivePanel({ wallet }) {
     setGenning(true)
     try {
       const res = await bridge.generateAddress()
-      const addr = res?.address || res?.output || ''
+      const out = typeof res === 'string' ? res : (res?.output || res?.address || '')
+      const addr = out.trim().split('\n').pop() || ''
       setVusdAddr(addr)
       const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
       w.vusdAddress = addr
@@ -305,7 +309,7 @@ export default function Transfer() {
       <div className="card">
         {tab === 'send'
           ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} />
-          : <ReceivePanel wallet={wallet} />}
+          : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} />}
       </div>
 
       {/* Transfer history */}
