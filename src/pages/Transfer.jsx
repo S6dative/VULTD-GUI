@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
+import { useLocation } from 'react-router-dom'
 import { bridge } from '../bridge/vusd'
 import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw, Bitcoin, DollarSign, ChevronDown } from 'lucide-react'
 
@@ -74,9 +75,9 @@ function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPriceVal, net
 }
 
 // ── Send Panel ────────────────────────────────────────────────────────────────
-function SendPanel({ wallet, network, btcPrice }) {
+function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
   const isSignet = network === 'signet'
-  const [asset, setAsset] = useState('btc')
+  const [asset, setAsset] = useState(defaultAsset || 'btc')
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
   const [sending, setSending] = useState(false)
@@ -177,7 +178,7 @@ function SendPanel({ wallet, network, btcPrice }) {
 
 // ── Receive Panel ─────────────────────────────────────────────────────────────
 function ReceivePanel({ wallet }) {
-  const [asset, setAsset] = useState('btc')
+  const [asset, setAsset] = useState(defaultAsset || 'btc')
   const [vusdAddr, setVusdAddr] = useState(wallet?.vusdAddress || '')
   const [genning, setGenning] = useState(false)
   const btcAddr = wallet?.address || ''
@@ -283,6 +284,8 @@ function ReceivePanel({ wallet }) {
 export default function Transfer() {
   const { wallet, network, btcPrice } = useApp()
   const isSignet = network === 'signet'
+  const location = useLocation()
+  const defaultAsset = new URLSearchParams(location.search).get('asset') || 'btc'
   const [tab, setTab] = useState('send')
 
   const tabs = [
@@ -301,7 +304,7 @@ export default function Transfer() {
 
       <div className="card">
         {tab === 'send'
-          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} />
+          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} />
           : <ReceivePanel wallet={wallet} />}
       </div>
 
