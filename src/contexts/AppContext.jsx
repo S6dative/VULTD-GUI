@@ -22,6 +22,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem('vultd-network', network)
+    if (window.electron?.setNetwork) window.electron.setNetwork(network)
   }, [network])
 
   const lock = () => setUnlocked(false)
