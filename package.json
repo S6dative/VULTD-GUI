@@ -48,7 +48,8 @@
       "target": "AppImage"
     },
     "win": {
-      "target": "nsis"
+      "target": "dir",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg"
