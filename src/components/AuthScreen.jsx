@@ -115,7 +115,7 @@ function Logo({ large = false }) {
         letterSpacing: large ? '-2px' : '-1px',
         marginBottom: 8,
       }}>
-        <img src='/icon.png' alt='VULTD' style={{ width: large ? 120 : 80, height: 'auto' }} />
+        <img src='icon.png' alt='VULTD' style={{ width: large ? 120 : 80, height: 'auto' }} />
       </div>
       <div style={{
         fontSize: 12,
