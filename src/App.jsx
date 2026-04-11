@@ -63,7 +63,7 @@ function Sidebar({ collapsed, setCollapsed }) {
           letterSpacing: '-0.03em',
           whiteSpace: 'nowrap',
         }}>
-          {collapsed ? 'V' : 'VULTD'}
+          {collapsed ? <img src='/icon.png' alt='V' style={{width:28, height:28, objectFit:'contain'}} /> : <img src='/icon.png' alt='VULTD' style={{width:90, height:32, objectFit:'contain'}} />}
         </span>
       </div>
 
