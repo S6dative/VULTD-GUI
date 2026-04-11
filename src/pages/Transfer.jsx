@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { useLocation } from 'react-router-dom'
 import { bridge } from '../bridge/vusd'
