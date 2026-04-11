@@ -284,6 +284,12 @@ export default function Dashboard() {
                 <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Total debt</span>
                 <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{fmt(totalDebt)}</span>
               </div>
+              {vaults.filter(v => v.cr && v.cr < 150).map(v => (
+                <div key={v.id} style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 10px', borderRadius:6, background:'var(--danger-dim)', border:'1px solid var(--danger)' }}>
+                  <AlertTriangle size={13} style={{color:'var(--danger)', flexShrink:0}} />
+                  <span style={{ fontSize:12, color:'var(--danger)' }}>Vault CR at {v.cr}% — add collateral or repay</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
