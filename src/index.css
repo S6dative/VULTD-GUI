@@ -127,6 +127,8 @@ input, select, textarea, button { font-family: inherit; font-size: 14px; }
   color: var(--accent-fg);
 }
 .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+.btn-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover { background: var(--danger); color: white; }
 .btn-secondary {
   background: var(--card2);
   color: var(--fg-dim);

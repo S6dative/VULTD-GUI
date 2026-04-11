@@ -25,6 +25,64 @@ function SummaryRow({ label, value, color }) {
   )
 }
 
+function AddCollateralPanel({ vaultId, isSignet }) {
+  const [sats, setSats] = uS('')
+  const [loading, setLoading] = uS(false)
+  const [msg, setMsg] = uS(null)
+  const handle = async () => {
+    if (!sats || isNaN(sats)) return
+    setLoading(true); setMsg(null)
+    try {
+      const res = await bridge.vusd(['add-collateral', '--vault', vaultId, '--amount', sats])
+      const out = res?.output || res || ''
+      if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
+      setMsg({ ok: true, text: 'Collateral added!' })
+      setSats('')
+    } catch(e) { setMsg({ ok: false, text: e.message }) }
+    setLoading(false)
+  }
+  return (
+    <div>
+      <div style={{ fontSize:12, fontWeight:500, marginBottom:6 }}>Add Collateral</div>
+      <div style={{ display:'flex', gap:8 }}>
+        <input value={sats} onChange={e => setSats(e.target.value)} placeholder={'Amount in sats'} className='input mono' style={{ flex:1, fontSize:12 }} />
+        <button onClick={handle} disabled={loading} className='btn btn-secondary' style={{ fontSize:12, whiteSpace:'nowrap' }}>
+          {loading ? 'Adding...' : 'Add'}
+        </button>
+      </div>
+      {msg && <div style={{ fontSize:11, marginTop:4, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</div>}
+    </div>
+  )
+}
+
+function CloseVaultPanel({ vaultId, debt }) {
+  const [loading, setLoading] = uS(false)
+  const [msg, setMsg] = uS(null)
+  const [confirm, setConfirm] = uS(false)
+  const handle = async () => {
+    if (!confirm) { setConfirm(true); return }
+    setLoading(true); setMsg(null)
+    try {
+      const res = await bridge.vusd(['close', '--vault', vaultId])
+      const out = res?.output || res || ''
+      if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
+      setMsg({ ok: true, text: 'Vault closed!' })
+      setConfirm(false)
+    } catch(e) { setMsg({ ok: false, text: e.message }) }
+    setLoading(false)
+  }
+  return (
+    <div>
+      <div style={{ fontSize:12, fontWeight:500, marginBottom:6 }}>Close Vault</div>
+      {debt > 0 && <div style={{ fontSize:11, color:'var(--warning)', marginBottom:6 }}>Repay ${debt.toFixed(2)} VUSD debt before closing.</div>}
+      <button onClick={handle} disabled={loading || (debt > 0)} className='btn btn-danger' style={{ fontSize:12, width:'100%' }}>
+        {loading ? 'Closing...' : confirm ? '⚠ Confirm Close Vault' : 'Close Vault'}
+      </button>
+      {msg && <div style={{ fontSize:11, marginTop:4, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</div>}
+    </div>
+  )
+}
+
 function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice }) {
   const [expanded, setExpanded] = uS(false)
   const [showPubkey, setShowPubkey] = uS(false)
@@ -103,6 +161,12 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
                 {showPubkey ? <EyeOff size={13}/> : <Eye size={13}/>}
               </button>
             </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, display:'flex', flexDirection:'column', gap:8 }}>
+            <AddCollateralPanel vaultId={v.id} isSignet={isSignet} />
+            <CloseVaultPanel vaultId={v.id} debt={v.debt} />
           </div>
         </div>
       )}
