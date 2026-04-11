@@ -52,7 +52,8 @@
     },
     "mac": {
       "target": "dmg"
-    }
+    },
+    "icon": "build/icon.png"
   },
   "description": "VULTD Wallet \u2014 Bitcoin-backed private stablecoin desktop app"
 }
