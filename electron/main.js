@@ -7,6 +7,10 @@ const http = require("http")
 
 const IS_WIN = process.platform === "win32"
 const VUSD_WSL = "/home/s6d/.vusd/run_vusd.sh"
+let currentNetwork = 'signet'
+const getRpcPort = () => currentNetwork === 'mainnet' ? 8332 : 38332
+const getRpcUser = () => currentNetwork === 'mainnet' ? 'bitcoin' : 'vusd'
+const getRpcPass = () => currentNetwork === 'mainnet' ? 'bitcoin' : 'vusd_rpc_password'
 const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038", VUSD_SIGNING_KEY_HEX:"855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e" }
 const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
@@ -31,9 +35,9 @@ function btcRpc(method, params=[], wallet="") {
     const body = JSON.stringify({ jsonrpc:"1.0", id:"vultd", method, params })
     const walletPath = wallet ? "/wallet/"+wallet : "/"
     const opts = {
-      hostname:"127.0.0.1", port:38332, path:walletPath, method:"POST",
+      hostname:"127.0.0.1", port:getRpcPort(), path:walletPath, method:"POST",
       headers:{ "Content-Type":"application/json", "Content-Length":Buffer.byteLength(body),
-        "Authorization":"Basic "+Buffer.from("vusd:vusd_rpc_password").toString("base64") }
+        "Authorization":"Basic "+Buffer.from(getRpcUser()+":"+getRpcPass()).toString("base64") }
     }
     const req = http.request(opts, res => {
       let data = ""
@@ -89,6 +93,11 @@ ipcMain.handle("vusd", async (_,args) => {
   const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
   const wslArgs = IS_WIN ? ["-e", VUSD_WSL, ...args] : args
   return run(bin, wslArgs, IS_WIN ? {} : VENV)
+})
+
+ipcMain.handle("set-network", (_, network) => {
+  currentNetwork = network
+  return { network: currentNetwork, port: getRpcPort() }
 })
 
 ipcMain.handle("btc-balance", async () => {
