@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useApp } from '../contexts/AppContext'
 import { useLocation } from 'react-router-dom'
 import { bridge } from '../bridge/vusd'
@@ -245,6 +246,11 @@ function ReceivePanel({ wallet, defaultAsset, network }) {
 
         {displayAddr ? (
           <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
+            <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+              <div style={{ background:'white', padding:12, borderRadius:8 }}>
+                <QRCodeSVG value={displayAddr} size={160} />
+              </div>
+            </div>
             <div style={{ fontFamily:'Geist Mono, monospace', fontSize:12, color:'var(--fg)', wordBreak:'break-all', lineHeight:1.8, marginBottom:12 }}>
               {displayAddr}
             </div>
@@ -322,7 +328,7 @@ function TransferHistory() {
             <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color: tx.category==='send'?'var(--danger)':'var(--success)' }}>
               {tx.category==='send'?'':'+'}{ Math.abs(tx.amount).toFixed(8) } BTC
             </div>
-            <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{tx.confirmations === 0 ? 'Pending' : new Date(tx.time*1000).toLocaleDateString()}</div>
+            <div style={{ fontSize:11, color: tx.confirmations === 0 ? 'var(--warning)' : 'var(--muted-fg)' }}>{tx.confirmations === 0 ? '⏳ Pending' : tx.confirmations < 3 ? tx.confirmations+' conf' : new Date(tx.time*1000).toLocaleDateString()}</div>
           </div>
         </div>
       ))}
