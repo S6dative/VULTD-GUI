@@ -286,6 +286,50 @@ function ReceivePanel({ wallet, defaultAsset, network }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+function TransferHistory() {
+  const [txs, setTxs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    bridge.listTransactions().then(data => {
+      if (Array.isArray(data)) setTxs(data)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div style={{ padding:'16px 20px', textAlign:'center', color:'var(--muted-fg)', fontSize:13 }}>Loading...</div>
+  if (txs.length === 0) return (
+    <div style={{ padding:'16px 20px', textAlign:'center', color:'var(--muted-fg)' }}>
+      <div style={{ fontSize:13, marginBottom:4 }}>No transfers yet</div>
+      <div style={{ fontSize:12 }}>Bitcoin and VUSD transfers will appear here</div>
+    </div>
+  )
+  return (
+    <div style={{ display:'flex', flexDirection:'column' }}>
+      {txs.map((tx, i) => (
+        <div key={tx.txid+tx.category+i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom: i < txs.length-1 ? '1px solid var(--border)' : 'none' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:32, height:32, borderRadius:'50%', background: tx.category==='send'?'var(--danger-dim)':'var(--success-dim)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              {tx.category==='send' ? <ArrowUpRight size={14} style={{color:'var(--danger)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
+            </div>
+            <div>
+              <div style={{ fontWeight:500, fontSize:13 }}>{tx.category==='send' ? 'Sent sBTC' : 'Received sBTC'}</div>
+              <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>
+                {tx.address?.slice(0,10)}...{tx.address?.slice(-6)} · {tx.confirmations} conf
+              </div>
+            </div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color: tx.category==='send'?'var(--danger)':'var(--success)' }}>
+              {tx.category==='send'?'':'+'}{ Math.abs(tx.amount).toFixed(8) } BTC
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted-fg)' }}>{tx.confirmations === 0 ? 'Pending' : new Date(tx.time*1000).toLocaleDateString()}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Transfer() {
   const { wallet, network, btcPrice } = useApp()
   const isSignet = network === 'signet'
