@@ -77,7 +77,13 @@ export default function Dashboard() {
 
   const fetchAll = () => {
     fetchPrice()
-    if (network === 'mainnet') { setBtcSats(0); return }
+    if (network === 'mainnet') {
+      setBtcSats(0)
+      setVusdBal(0)
+      setVaults([])
+      setTxHistory([])
+      return
+    }
     bridge.btcBalance().then(bal => {
       let s = 0
       if (typeof bal === "number") s = Math.round(bal * 100000000)
@@ -89,7 +95,6 @@ export default function Dashboard() {
         localStorage.setItem("vultd-wallet", JSON.stringify(w))
       }
     }).catch(() => {})
-    if (network === 'mainnet') { setVusdBal(0); return }
     bridge.readWallet().then(data => {
       if (data?.balance != null) {
         const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
@@ -99,7 +104,6 @@ export default function Dashboard() {
       }
       if (data?.history) setTxHistory(data.history)
     }).catch(() => {})
-    if (network === 'mainnet') { setVaults([]); setLoadingVaults && setLoadingVaults(false); return }
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
