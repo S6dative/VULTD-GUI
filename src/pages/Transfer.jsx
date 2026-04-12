@@ -187,8 +187,8 @@ function ReceivePanel({ wallet, defaultAsset, network }) {
   })
   const [genning, setGenning] = useState(false)
   const btcAddr = wallet?.address || ''
-  const [oneTimeAddr, setOneTimeAddr] = uS('')
-  const [genningOneTime, setGenningOneTime] = uS(false)
+  const [oneTimeAddr, setOneTimeAddr] = useState('')
+  const [genningOneTime, setGenningOneTime] = useState(false)
   const generateOneTime = async () => {
     setGenningOneTime(true)
     try {
