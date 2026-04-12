@@ -22,7 +22,10 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem('vultd-network', network)
-  }, [network])
+    if (window.electron?.setNetwork) window.electron.setNetwork(network)
+    if (network === 'mainnet') {
+      setWallet(prev => ({ ...(prev||{}), address: '', btcSats: 0, vusdBalance: 0 }))
+    }
 
   const lock = () => setUnlocked(false)
 

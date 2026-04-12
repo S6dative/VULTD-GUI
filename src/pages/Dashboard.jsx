@@ -75,9 +75,9 @@ export default function Dashboard() {
     setPriceLoading(false)
   }
 
-  const fetchAll = () => {
+  const fetchAll = (net) => {
     fetchPrice()
-    if (network === 'mainnet') {
+    if ((net || network) === 'mainnet') {
       setBtcSats(0)
       setVusdBal(0)
       setVaults([])
@@ -123,14 +123,8 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    if (network === 'mainnet') {
-      setBtcSats(0); setVusdBal(0); setVaults([]); setTxHistory([])
-    } else {
-      fetchAll()
-    }
-    const interval = setInterval(() => {
-      if (network !== 'mainnet') fetchAll()
-    }, 30000)
+    fetchAll(network)
+    const interval = setInterval(() => fetchAll(network), 30000)
     return () => clearInterval(interval)
   }, [network])
 
