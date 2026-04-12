@@ -57,5 +57,6 @@
     },
     "icon": "build/icon.png"
   },
-  "description": "VULTD Wallet — Bitcoin-backed private stablecoin desktop app"
+  "description": "Bitcoin-backed private stablecoin wallet",
+  "author": "VULTD Protocol"
 }

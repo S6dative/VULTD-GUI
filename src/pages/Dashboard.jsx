@@ -97,14 +97,12 @@ export default function Dashboard() {
         localStorage.setItem("vultd-wallet", JSON.stringify(w))
       }
     }).catch(() => {})
-    bridge.readWallet().then(data => {
-      if (data?.balance != null) {
-        const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
-        w.vusdBalance = data.balance
-        localStorage.setItem("vultd-wallet", JSON.stringify(w))
-        setVusdBal(data.balance)
-      }
-      if (data?.history) setTxHistory(data.history)
+    bridge.vusdBalance().then(data => {
+      const bal = typeof data === 'number' ? data : (data?.balance ?? 0)
+      setVusdBal(bal)
+      const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
+      w.vusdBalance = bal
+      localStorage.setItem("vultd-wallet", JSON.stringify(w))
     }).catch(() => {})
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
@@ -152,7 +150,7 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <span className="badge badge-warning">{isSignet ? 'Signet' : 'Mainnet'}</span>
-          {isSignet && <span className="badge badge-danger">TEST</span>}
+
         </div>
       </div>
 
