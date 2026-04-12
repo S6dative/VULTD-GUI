@@ -114,6 +114,7 @@ export function AppProvider({ children }) {
       unlocked, lock, unlock, setupPin,
       hasWallet, wallet, createWallet, recoverWallet,
       btcPrice, setBtcPrice,
+      refreshBtcAddress,
 
     }}>
       {children}

@@ -50,6 +50,8 @@ export default function Dashboard() {
         const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
         w.address = addr
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        if (window.electron?.setNetwork) {} // trigger re-render
+        setWallet && setWallet(w)
       }
     } catch(e) { console.error('generate:', e) }
     setGenerating(false)
