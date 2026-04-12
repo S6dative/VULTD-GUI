@@ -44,7 +44,7 @@ export function AppProvider({ children }) {
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
         setWallet(prev => ({ ...prev, address: addr }))
       }
-    } catch {}
+    } catch(e) { console.error('refreshBtcAddress error:', e) }
   }
 
   const unlock = (pin) => {
