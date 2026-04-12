@@ -25,32 +25,77 @@ function SummaryRow({ label, value, color }) {
   )
 }
 
-function AddCollateralPanel({ vaultId, isSignet }) {
+function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
   const [sats, setSats] = uS('')
   const [loading, setLoading] = uS(false)
   const [msg, setMsg] = uS(null)
+  const [confirmed, setConfirmed] = uS(false)
+  const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
+
+  const addSats = parseInt(sats) || 0
+  const currentCollSats = v?.collateralSats || 0
+  const newCollSats = currentCollSats + addSats
+  const newCollUsd = (newCollSats / 1e8) * (btcPrice || 71000)
+  const debt = v?.debt || 0
+  const newCR = debt > 0 ? Math.round(newCollUsd / debt * 100) : null
+  const newLiqPrice = debt > 0 ? Math.round((debt * 1.1) / (newCollSats / 1e8)) : null
+  const networkFee = Math.round(addSats * 0.0001)
+
   const handle = async () => {
-    if (!sats || isNaN(sats)) return
+    if (!sats || isNaN(sats) || addSats <= 0) return
+    if (!confirmed) { setConfirmed(true); return }
     setLoading(true); setMsg(null)
     try {
       const res = await bridge.addCollateral(vaultId, sats)
       const out = res?.output || res || ''
       if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
-      setMsg({ ok: true, text: 'Collateral added!' })
-      setSats('')
+      setMsg({ ok: true, text: 'Collateral added! New CR: ' + newCR + '%' })
+      setSats(''); setConfirmed(false)
     } catch(e) { setMsg({ ok: false, text: e.message }) }
     setLoading(false)
   }
+
   return (
     <div>
       <div style={{ fontSize:12, fontWeight:500, marginBottom:6 }}>Add Collateral</div>
-      <div style={{ display:'flex', gap:8 }}>
-        <input value={sats} onChange={e => setSats(e.target.value)} placeholder={'Amount in sats'} className='input mono' style={{ flex:1, fontSize:12 }} />
-        <button onClick={handle} disabled={loading} className='btn btn-secondary' style={{ fontSize:12, whiteSpace:'nowrap' }}>
-          {loading ? 'Adding...' : 'Add'}
+      <div style={{ display:'flex', gap:8, marginBottom: addSats > 0 ? 10 : 0 }}>
+        <input value={sats} onChange={e => { setSats(e.target.value); setConfirmed(false) }} placeholder='Amount in sats' className='input mono' style={{ flex:1, fontSize:12 }} />
+        <button onClick={handle} disabled={loading || !sats} className={confirmed ? 'btn btn-primary' : 'btn btn-secondary'} style={{ fontSize:12, whiteSpace:'nowrap' }}>
+          {loading ? 'Adding...' : confirmed ? '✓ Confirm' : 'Preview'}
         </button>
       </div>
-      {msg && <div style={{ fontSize:11, marginTop:4, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</div>}
+      {addSats > 0 && (
+        <div style={{ background:'var(--bg)', borderRadius:8, padding:'10px 12px', fontSize:11, display:'flex', flexDirection:'column', gap:6, border:'1px solid var(--border)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>Adding</span>
+            <span style={{ fontFamily:'Geist Mono, monospace' }}>{addSats.toLocaleString()} {isSignet?'sBTC':'BTC'} sats</span>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>Total collateral after</span>
+            <span style={{ fontFamily:'Geist Mono, monospace' }}>{newCollSats.toLocaleString()} sats ({fmt(newCollUsd)})</span>
+          </div>
+          {newCR && <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>New collateral ratio</span>
+            <span style={{ fontFamily:'Geist Mono, monospace', color: newCR >= 200 ? 'var(--success)' : newCR >= 150 ? 'var(--warning)' : 'var(--danger)' }}>{newCR}%</span>
+          </div>}
+          {newLiqPrice && <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>New liquidation price</span>
+            <span style={{ fontFamily:'Geist Mono, monospace', color:'var(--danger)' }}>${newLiqPrice.toLocaleString()}</span>
+          </div>}
+          <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>Estimated network fee</span>
+            <span style={{ fontFamily:'Geist Mono, monospace' }}>~{networkFee} sats</span>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <span style={{ color:'var(--muted-fg)' }}>Protocol fee</span>
+            <span style={{ fontFamily:'Geist Mono, monospace', color:'var(--success)' }}>None</span>
+          </div>
+          {confirmed && <div style={{ marginTop:4, padding:'6px 8px', background:'var(--warning-dim)', borderRadius:6, color:'var(--warning)', fontSize:11 }}>
+            Click Confirm to add collateral to your vault.
+          </div>}
+        </div>
+      )}
+      {msg && <div style={{ fontSize:11, marginTop:6, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</div>}
     </div>
   )
 }
@@ -165,7 +210,7 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
 
           {/* Actions */}
           <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, display:'flex', flexDirection:'column', gap:8 }}>
-            <AddCollateralPanel vaultId={v.id} isSignet={isSignet} />
+            <AddCollateralPanel vaultId={v.id} isSignet={isSignet} v={v} btcPrice={btcPrice} />
             <CloseVaultPanel vaultId={v.id} debt={v.debt} />
           </div>
         </div>
