@@ -48,8 +48,13 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
     try {
       const res = await bridge.addCollateral(vaultId, sats)
       const out = String(res?.output || res || '')
-      if (out.toLowerCase().includes('error') || out.toLowerCase().includes('failed')) throw new Error(out)
-      setMsg({ ok: true, text: '✅ Collateral added successfully!' })
+      // Check only the last line for errors (ignore oracle warnings)
+      const lastLine = out.split('\n').filter(l => l.trim()).pop() || ''
+      if (lastLine.toLowerCase().includes('error') || lastLine.toLowerCase().includes('failed')) throw new Error(lastLine)
+      // Extract CR from output if available
+      const crMatch = out.match(/New CR[:\s]+([\.\d]+)%/)
+      const newCRFromOutput = crMatch ? parseFloat(crMatch[1]).toFixed(2) : null
+      setMsg({ ok: true, text: '✅ Collateral added! New CR: ' + (newCRFromOutput || newCR) + '%' })
       setSats('')
       setConfirmed(false)
       // Re-fetch vault data to update collateral display
