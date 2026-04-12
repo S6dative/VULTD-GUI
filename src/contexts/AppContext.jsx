@@ -26,6 +26,7 @@ export function AppProvider({ children }) {
     if (network === 'mainnet') {
       setWallet(prev => ({ ...(prev||{}), address: '', btcSats: 0, vusdBalance: 0 }))
     }
+  }, [network])
 
   const lock = () => setUnlocked(false)
 
