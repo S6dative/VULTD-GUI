@@ -49,8 +49,10 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
       const res = await bridge.addCollateral(vaultId, sats)
       const out = res?.output || res || ''
       if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
-      setMsg({ ok: true, text: 'Collateral added! New CR: ' + newCR + '%' })
+      setMsg({ ok: true, text: '✅ Collateral added! New CR: ' + newCR + '%' })
       setSats(''); setConfirmed(false)
+      // Refresh vault list
+      setTimeout(() => window.location.reload(), 1500)
     } catch(e) { setMsg({ ok: false, text: e.message }) }
     setLoading(false)
   }

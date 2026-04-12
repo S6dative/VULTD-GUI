@@ -65,9 +65,13 @@ function run(bin, args, env={}) {
       clearTimeout(timeout)
       if (code !== 0) return reject(new Error(err.trim() || "exit "+code))
       const t = out.trim()
-      try { resolve(JSON.parse(t)) } catch { const n=parseFloat(t); if(!isNaN(n)) resolve(n); else resolve({output:t}) }
+      const tc = t.replace(/\x1B\[[0-9;]*[mGKHF]/g,'').replace(/\[\d+[mGKH]/g,''); try { resolve(JSON.parse(tc)) } catch { const n=parseFloat(tc); if(!isNaN(n)) resolve(n); else resolve({output:tc}) }
     })
   })
+}
+
+function stripAnsi(str) {
+  return (str || '').replace(/\x1B\[[0-9;]*[mGKHF]/g, '').replace(/\[\d+m/g, '')
 }
 
 function parseVusd(text) {
@@ -194,7 +198,7 @@ ipcMain.handle("vusd-balance-parsed", async () => {
     const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
     const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
-    return parseVusd(r.output || "")
+    return parseVusd(stripAnsi(r.output || ""))
   } catch(e) { return {} }
 })
 
@@ -203,7 +207,7 @@ ipcMain.handle("vusd-oracle-parsed", async () => {
     const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
     const args = IS_WIN ? ["-e", VUSD_WSL, "oracle"] : ["oracle"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
-    return parseVusd(r.output || "")
+    return parseVusd(stripAnsi(r.output || ""))
   } catch(e) { return {} }
 })
 
