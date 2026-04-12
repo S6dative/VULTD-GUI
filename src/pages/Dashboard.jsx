@@ -98,7 +98,7 @@ export default function Dashboard() {
       }
     }).catch(() => {})
     bridge.vusdBalance().then(data => {
-      const bal = typeof data === 'number' ? data : (data?.balance ?? 0)
+      const bal = typeof data === 'number' ? data : (data?.vusd_balance ?? data?.balance ?? 0)
       setVusdBal(bal)
       const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
       w.vusdBalance = bal
