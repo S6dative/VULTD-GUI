@@ -187,6 +187,16 @@ function ReceivePanel({ wallet, defaultAsset, network }) {
   })
   const [genning, setGenning] = useState(false)
   const btcAddr = wallet?.address || ''
+  const [oneTimeAddr, setOneTimeAddr] = uS('')
+  const [genningOneTime, setGenningOneTime] = uS(false)
+  const generateOneTime = async () => {
+    setGenningOneTime(true)
+    try {
+      const addr = await bridge.btcNewAddress()
+      if (addr) setOneTimeAddr(addr)
+    } catch(e) {}
+    setGenningOneTime(false)
+  }
   const isBtc = asset === 'btc'
   const displayAddr = isBtc ? btcAddr : vusdAddr
 
@@ -279,6 +289,30 @@ function ReceivePanel({ wallet, defaultAsset, network }) {
           ? 'Send Bitcoin to this address to fund your wallet. Funds appear after 1 confirmation on-chain.'
           : 'Share this stealth address to receive VUSD privately via Lightning. Each address is single-use for maximum privacy.'}
       </div>
+      {/* One-time address */}
+      {isBtc && (
+        <div style={{ padding:'14px 16px', background:'var(--card2)', borderRadius:8, border:'1px solid var(--border)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <div style={{ fontSize:12, fontWeight:500 }}>One-time deposit address</div>
+            <button onClick={generateOneTime} disabled={genningOneTime} className='btn btn-secondary' style={{ fontSize:11, padding:'4px 10px' }}>
+              {genningOneTime ? 'Generating...' : 'Generate'}
+            </button>
+          </div>
+          {oneTimeAddr ? (
+            <div>
+              <div style={{ fontFamily:'Geist Mono, monospace', fontSize:11, color:'var(--fg)', wordBreak:'break-all', marginBottom:8 }}>{oneTimeAddr}</div>
+              <CopyBtn text={oneTimeAddr} />
+            </div>
+          ) : (
+            <div style={{ fontSize:11, color:'var(--muted-fg)' }}>Generate a fresh address for a single deposit — better for privacy</div>
+          )}
+          <div style={{ marginTop:10, padding:'8px 10px', background:'var(--bg)', borderRadius:6 }}>
+            <div style={{ fontSize:11, color:'var(--muted-fg)', lineHeight:1.6 }}>
+              Bitcoin transactions are publicly visible on-chain. Using a unique address for each deposit makes it harder to link your deposits together. Once your BTC is locked in a VULTD vault, your VUSD activity is protected by ring signatures and stealth addresses — making it unlinkable by design.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* VUSD privacy note */}
       {!isBtc && (

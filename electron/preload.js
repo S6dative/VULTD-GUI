@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("electron", {
   faucet:      (address) => ipcRenderer.invoke("faucet", address),
   btcBalance:  ()        => ipcRenderer.invoke("btc-balance"),
   btcAddress:  ()        => ipcRenderer.invoke("btc-address"),
+  btcNewAddress: ()       => ipcRenderer.invoke("btc-new-address"),
   readVaults:  ()        => ipcRenderer.invoke("read-vaults"),
   vusdBalance: ()        => ipcRenderer.invoke("vusd-balance-parsed"),
   readWallet:  ()        => ipcRenderer.invoke("read-wallet"),

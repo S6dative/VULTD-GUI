@@ -22,6 +22,7 @@ async function ipc(channel, ...args) {
 export const bridge = {
   btcBalance:      ()              => ipc('btcBalance'),
   btcAddress:      ()              => ipc('btcAddress'),
+  btcNewAddress:   ()              => ipc('btcNewAddress'),
   vusdBalance:     ()              => ipc('vusdBalance'),
   readVaults:      ()              => ipc('readVaults'),
   readWallet:      ()              => ipc('readWallet'),

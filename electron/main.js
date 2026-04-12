@@ -104,6 +104,10 @@ ipcMain.handle("btc-balance", async () => {
   try { return await btcRpc("getbalance", [], "vusd") } catch(e) { return 0 }
 })
 
+ipcMain.handle("btc-new-address", async () => {
+  try { return await btcRpc("getnewaddress", ["one-time"], "vusd") } catch(e) { return "" }
+})
+
 ipcMain.handle("btc-address", async () => {
   try {
     // Return existing address if one exists, otherwise generate new
