@@ -105,7 +105,13 @@ ipcMain.handle("btc-balance", async () => {
 })
 
 ipcMain.handle("btc-address", async () => {
-  try { return await btcRpc("getnewaddress", [], "vusd") } catch(e) { return "" }
+  try {
+    // Return existing address if one exists, otherwise generate new
+    const addrs = await btcRpc("getaddressesbylabel", [""], "vusd")
+    const existing = Object.keys(addrs || {}).find(a => a.startsWith('tb1') || a.startsWith('bc1'))
+    if (existing) return existing
+    return await btcRpc("getnewaddress", [], "vusd")
+  } catch(e) { return "" }
 })
 
 ipcMain.handle("bitcoin-cli", async (_, args) => {
