@@ -47,10 +47,29 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
     setLoading(true); setMsg(null)
     try {
       const res = await bridge.addCollateral(vaultId, sats)
-      const out = res?.output || res || ''
-      if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
-      setMsg({ ok: true, text: '✅ Collateral added! New CR: ' + newCR + '%' })
-      setSats(''); setConfirmed(false)
+      const out = String(res?.output || res || '')
+      if (out.toLowerCase().includes('error') || out.toLowerCase().includes('failed')) throw new Error(out)
+      setMsg({ ok: true, text: '✅ Collateral added successfully!' })
+      setSats('')
+      setConfirmed(false)
+      // Re-fetch vault data to update collateral display
+      bridge.readVaults().then(data => {
+        if (!data) return
+        const entries = Object.entries(data)
+        const updated = entries.map(([id, v]) => ({
+          id: String(id),
+          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+          collateralSats: v.locked_btc || 0,
+          debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
+          openedAt: v.open_timestamp || 0,
+          lastUpdated: v.last_updated || 0,
+          openFeeSats: v.open_fee_paid_sats || 0,
+          ownerPubkey: v.owner_pubkey || '',
+          taprootTxid: v.taproot_txid || '',
+        }))
+        // Trigger parent re-render by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('vaults-updated', { detail: updated }))
+      }).catch(() => {})
       // Refresh vault list
       setTimeout(() => window.location.reload(), 1500)
     } catch(e) { setMsg({ ok: false, text: e.message }) }
@@ -237,6 +256,12 @@ export default function Vaults() {
   const walletSats = wallet?.btcSats || 0
 
   const [realSats, setRealSats] = useState(walletSats)
+
+  useEffect(() => {
+    const handler = (e) => setVaults(e.detail)
+    window.addEventListener('vaults-updated', handler)
+    return () => window.removeEventListener('vaults-updated', handler)
+  }, [])
 
   useEffect(() => {
     bridge.btcBalance().then(bal => {
