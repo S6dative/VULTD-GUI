@@ -32,6 +32,7 @@ export const bridge = {
   mint:            (vault, amount) => ipc('vusd', ['mint', '--vault', vault, '--amount', String(amount)]),
   repay:           (vault, amount) => ipc('vusd', ['repay', '--vault', vault, '--amount', String(amount)]),
   closeVault:      (vault)         => ipc('vusd', ['close', '--vault', vault]),
+  addCollateral:   (vault, sats)   => ipc('vusd', ['add-collateral', '--vault', vault, '--amount', String(sats)]),
   health:          (vault)         => ipc('vusd', ['health', '--vault', vault]),
   send:            (to, amount)    => ipc('vusd', ['send', '--to', to, '--amount', String(amount)]),
   listTransactions: ()              => ipc('listTransactions'),

@@ -58,7 +58,7 @@ export function AppProvider({ children }) {
   }
 
   useEffect(() => {
-    if (unlocked) refreshBtcAddress()
+    if (unlocked) refreshBtcAddress(true)
   }, [unlocked])
 
   const setupPin = (pin) => {

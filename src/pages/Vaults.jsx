@@ -33,7 +33,7 @@ function AddCollateralPanel({ vaultId, isSignet }) {
     if (!sats || isNaN(sats)) return
     setLoading(true); setMsg(null)
     try {
-      const res = await bridge.vusd(['add-collateral', '--vault', vaultId, '--amount', sats])
+      const res = await bridge.addCollateral(vaultId, sats)
       const out = res?.output || res || ''
       if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
       setMsg({ ok: true, text: 'Collateral added!' })
@@ -63,7 +63,7 @@ function CloseVaultPanel({ vaultId, debt }) {
     if (!confirm) { setConfirm(true); return }
     setLoading(true); setMsg(null)
     try {
-      const res = await bridge.vusd(['close', '--vault', vaultId])
+      const res = await bridge.closeVault(vaultId)
       const out = res?.output || res || ''
       if (String(out).includes('Error') || String(out).includes('error')) throw new Error(out)
       setMsg({ ok: true, text: 'Vault closed!' })
