@@ -42,7 +42,7 @@ export function AppProvider({ children }) {
       if (addr && (addr.startsWith('tb1') || addr.startsWith('bc1'))) {
         w.address = addr
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
-        setWallet(prev => ({ ...prev, address: addr }))
+        setWallet(prev => ({ ...(prev || {}), address: addr, btcSats: prev?.btcSats || 0, vusdBalance: prev?.vusdBalance || 0 }))
       }
     } catch(e) { console.error('refreshBtcAddress error:', e) }
   }
