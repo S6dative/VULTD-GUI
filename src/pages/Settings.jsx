@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, CheckCircle, AlertCircle, Shield, HelpCircle, Moon, Sun, Lock, Zap } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Shield, HelpCircle, Moon, Sun, Lock, Zap, Eye } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
 
