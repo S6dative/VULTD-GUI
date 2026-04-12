@@ -23,6 +23,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('vultd-network', network)
     if (window.electron?.setNetwork) window.electron.setNetwork(network)
+    // Reset wallet balance cache on network switch
+    const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+    w.btcSats = 0
+    localStorage.setItem('vultd-wallet', JSON.stringify(w))
   }, [network])
 
   const lock = () => setUnlocked(false)
