@@ -37,14 +37,7 @@ export default function Dashboard() {
   const [btcPrice, setBtcPrice] = useState(null)
   const [priceChange, setPriceChange] = useState(null)
   const [priceLoading, setPriceLoading] = useState(true)
-  const [btcSats, setBtcSats] = useState(0)
-  useEffect(() => {
-    setBtcSats(0)
-    setVusdBal(0)
-    setVaults([])
-    setTxHistory([])
-    setBtcPrice(null)
-  }, [network])
+  const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
   const [vusdBal, setVusdBal] = useState(0)
   const [generating, setGenerating] = useState(false)
 

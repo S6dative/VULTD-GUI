@@ -9,10 +9,8 @@ export function AppProvider({ children }) {
   const [unlocked, setUnlocked] = useState(false)
   const [hasWallet, setHasWallet] = useState(() => !!localStorage.getItem('vultd-wallet-exists'))
   const [btcPrice, setBtcPrice] = useState(() => parseFloat(localStorage.getItem('vultd-btcprice') || '85000'))
-  const getWalletKey = (net) => 'vultd-wallet-' + (net || 'signet')
   const [wallet, setWallet] = useState(() => {
-    const net = localStorage.getItem('vultd-network') || 'signet'
-    const stored = localStorage.getItem('vultd-wallet-' + net)
+    const stored = localStorage.getItem('vultd-wallet')
     if (stored) try { return JSON.parse(stored) } catch {}
     return null
   })
@@ -24,11 +22,6 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem('vultd-network', network)
-    if (window.electron?.setNetwork) window.electron.setNetwork(network)
-    // Load network-specific wallet
-    const stored = localStorage.getItem('vultd-wallet-' + network)
-    if (stored) try { setWallet(JSON.parse(stored)) } catch { setWallet(null) }
-    else setWallet(null)
   }, [network])
 
   const lock = () => setUnlocked(false)
@@ -44,7 +37,7 @@ export function AppProvider({ children }) {
       const addr = typeof res === 'string' ? res.trim() : res?.output?.trim() || ''
       if (addr && (addr.startsWith('tb1') || addr.startsWith('bc1'))) {
         w.address = addr
-        localStorage.setItem(getWalletKey(network), JSON.stringify(w))
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
         setWallet(prev => ({ ...prev, address: addr }))
       }
     } catch {}
@@ -73,14 +66,14 @@ export function AppProvider({ children }) {
 
   const createWallet = (pin, seedPhrase, address) => {
     const w = { seedPhrase, address: address || '', btcSats: 0, vusdBalance: 0 }
-    localStorage.setItem(getWalletKey(network), JSON.stringify(w))
+    localStorage.setItem('vultd-wallet', JSON.stringify(w))
     setWallet(w)
     setupPin(pin)
   }
 
   const recoverWallet = (pin, seedPhrase, address) => {
     const w = { seedPhrase, address: address || '', btcSats: 0, vusdBalance: 0 }
-    localStorage.setItem(getWalletKey(network), JSON.stringify(w))
+    localStorage.setItem('vultd-wallet', JSON.stringify(w))
     setWallet(w)
     setupPin(pin)
   }
