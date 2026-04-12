@@ -123,8 +123,14 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    fetchAll()
-    const interval = setInterval(fetchAll, 30000)
+    if (network === 'mainnet') {
+      setBtcSats(0); setVusdBal(0); setVaults([]); setTxHistory([])
+    } else {
+      fetchAll()
+    }
+    const interval = setInterval(() => {
+      if (network !== 'mainnet') fetchAll()
+    }, 30000)
     return () => clearInterval(interval)
   }, [network])
 
@@ -207,7 +213,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: 'var(--muted-fg)' }}>No address generated yet</span>
+            <span style={{ fontSize: 13, color: 'var(--muted-fg)' }}>{network === 'mainnet' ? 'Connect mainnet Bitcoin node to generate address' : 'No address generated yet'}</span>
             <button onClick={handleGenerate} disabled={generating} className="btn btn-secondary btn-sm">
               {generating ? 'Generating...' : 'Generate'} <ChevronRight size={12} />
             </button>
@@ -280,7 +286,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Open vaults</span>
-                <span style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 600 }}>{openVaults.length}</span>
+                <span style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 600 }}>{network === 'mainnet' ? 0 : openVaults.length}</span>
               </div>
               <div className="divider" />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -289,7 +295,7 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Total debt</span>
-                <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{fmt(totalDebt)}</span>
+                <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{network === 'mainnet' ? fmt(0) : fmt(totalDebt)}</span>
               </div>
               {vaults.filter(v => v.cr && v.cr < 150).map(v => (
                 <div key={v.id} style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 10px', borderRadius:6, background:'var(--danger-dim)', border:'1px solid var(--danger)' }}>
