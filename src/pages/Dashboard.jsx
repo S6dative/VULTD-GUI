@@ -122,7 +122,7 @@ export default function Dashboard() {
     fetchAll()
     const interval = setInterval(fetchAll, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [network])
 
   const vusdBalance = vusdBal || wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
