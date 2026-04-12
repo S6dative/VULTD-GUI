@@ -167,9 +167,33 @@ export default function Settings() {
       {/* Security */}
       <div className="card" style={{ marginBottom:16 }}>
         <h2 style={{ fontSize:13, fontWeight:600, marginBottom:16, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--muted-fg)' }}>Security</h2>
-        <Row label="Lock Wallet" desc="Require PIN to access again" tip="Locks the wallet immediately" last>
+        <Row label="Lock Wallet" desc="Require PIN to access again" tip="Locks the wallet immediately">
           <button onClick={lock} className="btn btn-secondary btn-sm">
             <Lock size={13}/> Lock Now
+          </button>
+        </Row>
+        <Row label="View Seed Phrase" desc="Back up your 12-word recovery phrase" tip="Store it somewhere safe — never share it">
+          <button onClick={() => {
+            const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+            const seed = w.seedPhrase || 'No seed phrase stored'
+            alert('Your seed phrase:\n\n' + seed + '\n\nWrite this down and store it safely.')
+          }} className="btn btn-secondary btn-sm">
+            <Eye size={13}/> Reveal
+          </button>
+        </Row>
+        <Row label="Change PIN" desc="Update your wallet PIN" tip="You will need to re-enter your current PIN" last>
+          <button onClick={() => {
+            const current = prompt('Enter current PIN:')
+            const stored = localStorage.getItem('vultd-pin')
+            if (current !== stored) { alert('Incorrect PIN'); return }
+            const newPin = prompt('Enter new PIN (6 digits):')
+            if (!newPin || newPin.length < 4) { alert('PIN too short'); return }
+            const confirm2 = prompt('Confirm new PIN:')
+            if (newPin !== confirm2) { alert('PINs do not match'); return }
+            localStorage.setItem('vultd-pin', newPin)
+            alert('PIN updated successfully!')
+          }} className="btn btn-secondary btn-sm">
+            Change PIN
           </button>
         </Row>
       </div>

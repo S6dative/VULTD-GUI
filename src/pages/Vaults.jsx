@@ -175,7 +175,7 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
 }
 
 export default function Vaults() {
-  const { wallet, network } = useApp()
+  const { wallet, network, btcPrice: liveBtcPrice } = useApp()
   const isSignet = network === 'signet'
   const [tab, setTab] = useState('create')
   const [btcAmount, setBtcAmount] = useState('')
@@ -186,7 +186,7 @@ export default function Vaults() {
   const [vaults, setVaults] = useState([])
   const [loadingVaults, setLoadingVaults] = useState(true)
   const [infoOpen, setInfoOpen] = useState(null)
-  const btcPrice = 85000
+  const btcPrice = liveBtcPrice || 85000
   const walletSats = wallet?.btcSats || 0
 
   const [realSats, setRealSats] = useState(walletSats)
