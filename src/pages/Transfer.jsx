@@ -118,7 +118,7 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <AssetSelector value={asset} onChange={a => { setAsset(a); setTo(''); setAmount(''); setStatus(null) }}
-        btcSats={btcSats} vusdBalance={vusdBalance} btcPriceVal={btcPriceVal} network={network} />
+        btcSats={btcSats} vusdBalance={vusdBalance} btcPriceVal={btcPrice || 85000} network={network} />
 
       {/* Privacy notice for VUSD */}
       {!isBtc && (
@@ -178,7 +178,7 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
 }
 
 // ── Receive Panel ─────────────────────────────────────────────────────────────
-function ReceivePanel({ wallet, defaultAsset, network }) {
+function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
   const isSignet = network === 'signet'
   const [btcAddrLocal, setBtcAddrLocal] = useState(() => {
     const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
@@ -413,7 +413,7 @@ export default function Transfer() {
       <div className="card">
         {tab === 'send'
           ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} />
-          : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} network={network} />}
+          : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} network={network} btcPrice={btcPrice} />}
       </div>
 
       {/* Transfer history */}
