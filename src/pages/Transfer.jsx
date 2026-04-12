@@ -180,13 +180,28 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
 // ── Receive Panel ─────────────────────────────────────────────────────────────
 function ReceivePanel({ wallet, defaultAsset, network }) {
   const isSignet = network === 'signet'
+  const [btcAddrLocal, setBtcAddrLocal] = useState(wallet?.address || '')
+  useEffect(() => {
+    if (!wallet?.address && network !== 'mainnet') {
+      bridge.btcAddress().then(addr => {
+        if (addr && typeof addr === 'string' && addr.startsWith('tb1')) {
+          setBtcAddrLocal(addr)
+          const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+          w.address = addr
+          localStorage.setItem('vultd-wallet', JSON.stringify(w))
+        }
+      }).catch(() => {})
+    } else {
+      setBtcAddrLocal(wallet?.address || '')
+    }
+  }, [wallet?.address, network])
   const [asset, setAsset] = useState(defaultAsset || 'btc')
   const [vusdAddr, setVusdAddr] = useState(() => {
     const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
     return w.vusdAddress || wallet?.vusdAddress || ''
   })
   const [genning, setGenning] = useState(false)
-  const btcAddr = wallet?.address || ''
+  const btcAddr = btcAddrLocal || wallet?.address || ''
   const [oneTimeAddr, setOneTimeAddr] = useState('')
   const [genningOneTime, setGenningOneTime] = useState(false)
   const generateOneTime = async () => {
