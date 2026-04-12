@@ -43,7 +43,7 @@ export default function Dashboard() {
     setVusdBal(0)
     setVaults([])
     setTxHistory([])
-    setPrice(null)
+    setBtcPrice(null)
   }, [network])
   const [vusdBal, setVusdBal] = useState(0)
   const [generating, setGenerating] = useState(false)
