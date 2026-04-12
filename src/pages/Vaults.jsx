@@ -250,8 +250,12 @@ export default function Vaults() {
         id: String(id || ''),
         state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
         collateralSats: v.locked_btc || 0,
-        debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
+        debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
         openedAt: v.open_timestamp || 0,
+        lastUpdated: v.last_updated || 0,
+        openFeeSats: v.open_fee_paid_sats || 0,
+        ownerPubkey: v.owner_pubkey || '',
+        taprootTxid: v.taproot_txid || '',
       })))
     }).catch(() => {}).finally(() => setLoadingVaults(false))
   }, [])
@@ -278,14 +282,15 @@ export default function Vaults() {
       if (data) {
         const entries = Object.entries(data)
         setVaults(entries.map(([id, v]) => ({
-          id: String(id || ''), state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-        lastUpdated: v.last_updated || 0,
-        openFeeSats: v.open_fee_paid_sats || 0,
-        ownerPubkey: v.owner_pubkey || '',
-        taprootTxid: v.taproot_txid || '',
-        cr: v.cr || null,
-        liqPrice: v.liq_price || null,
-          collateralSats: v.locked_btc || 0, debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0), openedAt: v.open_timestamp || 0,
+          id: String(id || ''),
+          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+          collateralSats: v.locked_btc || 0,
+          debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
+          openedAt: v.open_timestamp || 0,
+          lastUpdated: v.last_updated || 0,
+          openFeeSats: v.open_fee_paid_sats || 0,
+          ownerPubkey: v.owner_pubkey || '',
+          taprootTxid: v.taproot_txid || '',
         })))
       }
     } catch(e) {

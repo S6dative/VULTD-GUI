@@ -31,14 +31,14 @@ function CopyButton({ text, size = 13 }) {
 }
 
 export default function Dashboard() {
-  const { network, wallet, claimFaucet, canClaim, faucetClaims } = useApp()
+  const { network, wallet, claimFaucet, canClaim, faucetClaims, btcPrice: ctxBtcPrice, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal, refreshBtcAddress } = useApp()
   const navigate = useNavigate()
   const isSignet = network === 'signet'
   const [btcPrice, setBtcPrice] = useState(null)
   const [priceChange, setPriceChange] = useState(null)
   const [priceLoading, setPriceLoading] = useState(true)
-  const [btcSats, setBtcSats] = useState(wallet?.btcSats || 0)
-  const [vusdBal, setVusdBal] = useState(0)
+  const [btcSats, setBtcSats] = useState(ctxBtcSats || wallet?.btcSats || 0)
+  const [vusdBal, setVusdBal] = useState(ctxVusdBal || 0)
   const [generating, setGenerating] = useState(false)
 
   const handleGenerate = async () => {
@@ -66,6 +66,7 @@ export default function Dashboard() {
       const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
       const data = await res.json()
       setBtcPrice(data.bitcoin.usd)
+      setCtxBtcPrice(data.bitcoin.usd)
       setPriceChange(data.bitcoin.usd_24h_change?.toFixed(2))
     } catch {
       try {
@@ -92,6 +93,7 @@ export default function Dashboard() {
       else if (bal?.output) s = Math.round(parseFloat(bal.output) * 100000000)
       if (s >= 0) {
         setBtcSats(s)
+        setCtxBtcSats(s)
         const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
         w.btcSats = s
         localStorage.setItem("vultd-wallet", JSON.stringify(w))
@@ -100,6 +102,7 @@ export default function Dashboard() {
     bridge.vusdBalance().then(data => {
       const bal = typeof data === 'number' ? data : (data?.vusd_balance ?? data?.balance ?? 0)
       setVusdBal(bal)
+      setCtxVusdBal(bal)
       const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
       w.vusdBalance = bal
       localStorage.setItem("vultd-wallet", JSON.stringify(w))
@@ -107,15 +110,22 @@ export default function Dashboard() {
     bridge.readVaults().then(data => {
       const entries = Array.isArray(data) ? data : Object.entries(data || {})
       const normalized = entries.map(([id, v]) => ({
-        id: v.vault_id || id, state: v.state || "Unknown",
-        collateralSats: v.locked_btc || 0, debt: v.debt_vusd > 1000 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
+        id: v.vault_id || id,
+        state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+        collateralSats: v.locked_btc || 0,
+        debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
+        openedAt: v.open_timestamp || 0,
+        lastUpdated: v.last_updated || 0,
+        openFeeSats: v.open_fee_paid_sats || 0,
+        ownerPubkey: v.owner_pubkey || '',
+        taprootTxid: v.taproot_txid || '',
       }))
       setVaults(normalized)
       // Build activity from vault events
       const activity = []
       normalized.forEach(v => {
         if (v.openedAt) activity.push({ type:'vault_open', ts:v.openedAt, sats:v.collateralSats, vault:v.id })
-        if (v.debt > 0) activity.push({ type:'mint', ts:v.openedAt+60, amount:v.debt, vault:v.id })
+        if (v.debt > 0) activity.push({ type:'mint', ts:(v.lastUpdated || v.openedAt+60), amount:v.debt, vault:v.id })
       })
       activity.sort((a,b) => b.ts - a.ts)
       if (activity.length > 0) setTxHistory(activity)

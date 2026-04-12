@@ -9,6 +9,11 @@ export function AppProvider({ children }) {
   const [unlocked, setUnlocked] = useState(false)
   const [hasWallet, setHasWallet] = useState(() => !!localStorage.getItem('vultd-wallet-exists'))
   const [btcPrice, setBtcPrice] = useState(() => parseFloat(localStorage.getItem('vultd-btcprice') || '85000'))
+  const [btcSats, setBtcSats] = useState(() => {
+    const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+    return w.btcSats || 0
+  })
+  const [vusdBalance, setVusdBalance] = useState(0)
   const [wallet, setWallet] = useState(() => {
     const stored = localStorage.getItem('vultd-wallet')
     if (stored) try { return JSON.parse(stored) } catch {}
@@ -25,6 +30,8 @@ export function AppProvider({ children }) {
     if (window.electron?.setNetwork) window.electron.setNetwork(network)
     if (network === 'mainnet') {
       setWallet(prev => ({ ...(prev||{}), address: '', btcSats: 0, vusdBalance: 0 }))
+      setBtcSats(0)
+      setVusdBalance(0)
     }
   }, [network])
 
@@ -114,6 +121,8 @@ export function AppProvider({ children }) {
       unlocked, lock, unlock, setupPin,
       hasWallet, wallet, createWallet, recoverWallet,
       btcPrice, setBtcPrice,
+      btcSats, setBtcSats,
+      vusdBalance, setVusdBalance,
       refreshBtcAddress,
 
     }}>

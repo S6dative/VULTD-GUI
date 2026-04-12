@@ -76,7 +76,7 @@ function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPriceVal, net
 }
 
 // ── Send Panel ────────────────────────────────────────────────────────────────
-function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
+function SendPanel({ wallet, network, btcPrice, defaultAsset, ctxBtcSats }) {
   const isSignet = network === 'signet'
   const [asset, setAsset] = useState(defaultAsset || 'btc')
   const [to, setTo] = useState('')
@@ -85,7 +85,7 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset }) {
   const [status, setStatus] = useState(null)
   const btcPriceVal = btcPrice || 85000
 
-  const btcSats = wallet?.btcSats || 0
+  const btcSats = ctxBtcSats || wallet?.btcSats || 0
   const vusdBalance = wallet?.vusdBalance || 0
   const sendValue = parseFloat(amount) || 0
   const isBtc = asset === 'btc'
@@ -390,7 +390,7 @@ function TransferHistory() {
 }
 
 export default function Transfer() {
-  const { wallet, network, btcPrice } = useApp()
+  const { wallet, network, btcPrice, btcSats: ctxBtcSats } = useApp()
   const isSignet = network === 'signet'
   const location = useLocation()
   const defaultAsset = new URLSearchParams(location.search).get('asset') || 'btc'
@@ -412,7 +412,7 @@ export default function Transfer() {
 
       <div className="card">
         {tab === 'send'
-          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} />
+          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} ctxBtcSats={ctxBtcSats} />
           : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} network={network} btcPrice={btcPrice} />}
       </div>
 
