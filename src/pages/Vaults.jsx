@@ -71,6 +71,8 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
           openFeeSats: v.open_fee_paid_sats || 0,
           ownerPubkey: v.owner_pubkey || '',
           taprootTxid: v.taproot_txid || '',
+          liq_price: v.liq_price || null,
+          health_cr: v.health_cr || null,
         }))
         // Trigger parent re-render by dispatching a custom event
         window.dispatchEvent(new CustomEvent('vaults-updated', { detail: updated }))
@@ -160,6 +162,11 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
   const [copied, setCopied] = uS(false)
   const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 
+  // Compute liq price from live btcPrice and current collateral/debt so it
+  // updates dynamically even when vaults.json doesn't have the field.
+  // Formula: price at which CR = 110% (1.1x debt / collateral BTC)
+  const liqPrice = v.debt > 0 ? Math.round((v.debt * 1.1) / (v.collateralSats / 1e8)) : null
+
   const copy = (text) => {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
@@ -210,8 +217,8 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
             { label:'Opened', value: v.openedAt ? new Date(v.openedAt*1000).toLocaleString() : '--' },
             { label:'Last Updated', value: v.lastUpdated ? new Date(v.lastUpdated*1000).toLocaleString() : '--' },
             { label:'Open Fee Paid', value: v.openFeeSats ? v.openFeeSats.toLocaleString()+' sats' : '--' },
-            { label:'Liq. Price', value: v.liqPrice ? '$'+v.liqPrice.toLocaleString() : '--', color:'var(--danger)' },
-            { label:'Collateral Ratio', value: v.cr ? v.cr+'%' : '--', color: v.cr ? (v.cr>=200?'var(--success)':v.cr>=150?'var(--warning)':'var(--danger)') : undefined },
+            { label:'Liq. Price', value: liqPrice ? '$'+liqPrice.toLocaleString() : (v.liq_price ? '$'+v.liq_price.toLocaleString() : '--'), color:'var(--danger)' },
+            { label:'Collateral Ratio', value: health ? health+'%' : (v.health_cr ? v.health_cr+'%' : '--'), color: health ? (health>=200?'var(--success)':health>=150?'var(--warning)':'var(--danger)') : undefined },
             { label:'Taproot TXID', value: v.taprootTxid || '--', mono:true },
           ].map(row => (
             <div key={row.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12 }}>

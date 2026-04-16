@@ -159,12 +159,14 @@ ipcMain.handle("read-vaults", async () => {
         const lockedMatch = text.match(/Locked:\s*([\d]+)\s*sats/)
         const debtMatch = text.match(/Debt:\s*([\d.]+)/)
         const crMatch = text.match(/CR:\s*([\d.]+)%/)
+        const liqMatch = text.match(/Liq\.price:\s*\$?([\d.,]+)/)
         result[id] = {
           ...v,
           state: stateMatch ? stateMatch[1].charAt(0)+stateMatch[1].slice(1).toLowerCase() : v.state,
           locked_btc: lockedMatch ? parseInt(lockedMatch[1]) : v.locked_btc,
           debt_vusd: debtMatch ? parseFloat(debtMatch[1]) : (v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd),
           health_cr: crMatch ? parseFloat(crMatch[1]) : null,
+          liq_price: liqMatch ? parseFloat(liqMatch[1].replace(/,/g, '')) : null,
         }
       } catch {
         result[id] = { ...v, debt_vusd: v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd }
