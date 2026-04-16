@@ -350,7 +350,6 @@ export default function Vaults() {
   const canOpen = btcVal > 0 && collateralSats <= realSats && collateralSats > 0
   const maxBtc = Math.max(0, realSats/1e8 - networkFee).toFixed(8)
   const maxSats = Math.max(0, realSats - networkFeeSats)
-  const toggleMode = () => { setInputMode(m => m === 'btc' ? 'sats' : 'btc'); setBtcAmount('') }
 
   const handleOpen = async () => {
     if (!canOpen) return
@@ -434,21 +433,30 @@ export default function Vaults() {
                   step={inputMode === 'btc' ? '0.00000001' : '1'}
                   min='0'
                   className='input mono'
-                  style={{ paddingRight: 96 }} />
-                <div style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', display:'flex', alignItems:'center', gap:5 }}>
-                  <span style={{ fontSize:12, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>
-                    {inputMode === 'btc' ? 'BTC' : 'sats'}
-                  </span>
-                  <button onClick={toggleMode} style={{
-                    fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10,
-                    border:'1px solid rgba(247,147,26,0.45)', background:'rgba(247,147,26,0.1)',
-                    color:'var(--btc)', cursor:'pointer', lineHeight:1.5, fontFamily:'Geist, sans-serif',
-                    letterSpacing:'0.02em',
-                  }}>
-                    {inputMode === 'btc' ? 'sats' : 'BTC'}
-                  </button>
+                  style={{ paddingRight: 52 }} />
+                <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace', pointerEvents:'none' }}>
+                  {inputMode === 'btc' ? 'BTC' : 'sats'}
+                </span>
+              </div>
+
+              {/* Segmented BTC / sats toggle */}
+              <div style={{ display:'flex', justifyContent:'center', marginTop:10 }}>
+                <div style={{ display:'inline-flex', background:'rgba(255,255,255,0.06)', border:'1px solid var(--border)', borderRadius:20, padding:3 }}>
+                  {['btc','sats'].map(mode => (
+                    <button key={mode} onClick={() => { setInputMode(mode); setBtcAmount('') }}
+                      style={{
+                        padding:'4px 16px', borderRadius:16, border:'none', cursor:'pointer',
+                        fontSize:12, fontWeight: inputMode === mode ? 600 : 400,
+                        background: inputMode === mode ? 'rgba(255,255,255,0.12)' : 'transparent',
+                        color: inputMode === mode ? 'var(--fg)' : 'var(--muted-fg)',
+                        transition:'all 0.15s ease',
+                      }}>
+                      {mode}
+                    </button>
+                  ))}
                 </div>
               </div>
+
               <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, alignItems:'center' }}>
                 <span style={{ fontSize:11, color:'var(--muted-fg)' }}>
                   {btcVal > 0
