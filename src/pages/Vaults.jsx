@@ -293,6 +293,7 @@ export default function Vaults() {
   const isSignet = network === 'signet'
   const [tab, setTab] = useState('create')
   const [btcAmount, setBtcAmount] = useState('')
+  const [inputMode, setInputMode] = useState('btc') // 'btc' | 'sats'
   const [ltv, setLtv] = useState(44)
   const [opening, setOpening] = useState(false)
   const [openError, setOpenError] = useState(null)
@@ -334,15 +335,22 @@ export default function Vaults() {
     }).catch(() => {}).finally(() => setLoadingVaults(false))
   }, [])
 
-  const btcVal = parseFloat(btcAmount) || 0
-  const collateralSats = Math.round(btcVal * 1e8)
+  const btcVal = inputMode === 'btc'
+    ? (parseFloat(btcAmount) || 0)
+    : ((parseInt(btcAmount, 10) || 0) / 1e8)
+  const collateralSats = inputMode === 'btc'
+    ? Math.round(btcVal * 1e8)
+    : (parseInt(btcAmount, 10) || 0)
   const collateralUsd = btcVal * btcPrice
   const vusdToMint = collateralUsd * (ltv / 100)
   const networkFee = 0.00015
+  const networkFeeSats = Math.round(networkFee * 1e8)
   const systemFee = vusdToMint > 0 ? vusdToMint * 0.001 : 0
   const preset = PRESETS.find(p => p.ltv === ltv) || PRESETS[1]
   const canOpen = btcVal > 0 && collateralSats <= realSats && collateralSats > 0
   const maxBtc = Math.max(0, realSats/1e8 - networkFee).toFixed(8)
+  const maxSats = Math.max(0, realSats - networkFeeSats)
+  const toggleMode = () => { setInputMode(m => m === 'btc' ? 'sats' : 'btc'); setBtcAmount('') }
 
   const handleOpen = async () => {
     if (!canOpen) return
@@ -352,6 +360,7 @@ export default function Vaults() {
       await bridge.openVault(collateralSats)
       setOpenSuccess(true)
       setBtcAmount('')
+      setInputMode('btc')
       const data = await bridge.readVaults()
       if (data) {
         const entries = Object.entries(data)
@@ -414,18 +423,41 @@ export default function Vaults() {
             {/* BTC Collateral */}
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>BTC Collateral</div>
-              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>{isSignet ? "Enter the amount of sBTC to deposit as collateral" : isSignet ? 'Enter the amount of sBTC to deposit as collateral' : 'Enter the amount of BTC to deposit as collateral'}</div>
-              <div style={{ position:'relative' }}>
-                <input value={btcAmount} onChange={e => setBtcAmount(e.target.value)} type='number'
-                  placeholder='0.00000000' step='0.00001' min='0'
-                  className='input mono' style={{ paddingRight:52 }} />
-                <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>BTC</span>
+              <div style={{ fontSize:13, color:'var(--muted-fg)', marginBottom:12 }}>
+                {isSignet ? 'Enter the amount of sBTC to deposit as collateral' : 'Enter the amount of BTC to deposit as collateral'}
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
+              <div style={{ position:'relative' }}>
+                <input value={btcAmount}
+                  onChange={e => setBtcAmount(e.target.value)}
+                  type='number'
+                  placeholder={inputMode === 'btc' ? '0.00000000' : '0'}
+                  step={inputMode === 'btc' ? '0.00000001' : '1'}
+                  min='0'
+                  className='input mono'
+                  style={{ paddingRight: 96 }} />
+                <div style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', display:'flex', alignItems:'center', gap:5 }}>
+                  <span style={{ fontSize:12, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>
+                    {inputMode === 'btc' ? 'BTC' : 'sats'}
+                  </span>
+                  <button onClick={toggleMode} style={{
+                    fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10,
+                    border:'1px solid rgba(247,147,26,0.45)', background:'rgba(247,147,26,0.1)',
+                    color:'var(--btc)', cursor:'pointer', lineHeight:1.5, fontFamily:'Geist, sans-serif',
+                    letterSpacing:'0.02em',
+                  }}>
+                    {inputMode === 'btc' ? 'sats' : 'BTC'}
+                  </button>
+                </div>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, alignItems:'center' }}>
                 <span style={{ fontSize:11, color:'var(--muted-fg)' }}>
-                  {btcVal > 0 ? '≈ '+fmt(collateralUsd) : 'Available: '+fmtSats(realSats)}
+                  {btcVal > 0
+                    ? (inputMode === 'btc'
+                        ? '= ' + collateralSats.toLocaleString() + ' sats'
+                        : '= ' + btcVal.toFixed(8) + ' BTC')
+                    : 'Available: ' + fmtSats(realSats)}
                 </span>
-                <button onClick={() => setBtcAmount(maxBtc)}
+                <button onClick={() => setBtcAmount(inputMode === 'btc' ? maxBtc : String(maxSats))}
                   style={{ fontSize:11, color:'var(--btc)', background:'none', border:'none', cursor:'pointer', fontFamily:'Geist, sans-serif' }}>
                   Max
                 </button>
@@ -482,7 +514,7 @@ export default function Vaults() {
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Vault Summary</div>
-              <SummaryRow label={isSignet ? 'sBTC Collateral' : 'BTC Collateral'} value={btcVal > 0 ? btcAmount+' BTC' : '--'} />
+              <SummaryRow label={isSignet ? 'sBTC Collateral' : 'BTC Collateral'} value={btcVal > 0 ? btcVal.toFixed(8)+' BTC ('+(collateralSats.toLocaleString())+' sats)' : '--'} />
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
