@@ -108,14 +108,20 @@ export default function Dashboard() {
       localStorage.setItem("vultd-wallet", JSON.stringify(w))
     }).catch(() => {})
     bridge.readVaults().then(data => {
-      const entries = Array.isArray(data) ? data : Object.entries(data || {})
+      if (!data || typeof data !== 'object') return
+      const entries = Array.isArray(data) ? data : Object.entries(data)
+      if (entries.length === 0) return
+      // Normalise state: Rust can emit "Open" (no debt) or "Active" (debt outstanding).
+      // Both count as open vaults for display purposes.
+      const isOpenState = s => s === 'Open' || s === 'Active' || s === 'open' || s === 'active'
       const normalized = entries.map(([id, v]) => ({
         id: v.vault_id || id,
-        state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+        state: isOpenState(v.state) ? 'Open' : (v.state || 'Unknown'),
         collateralSats: v.locked_btc || 0,
         debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
-        openedAt: v.open_timestamp || 0,
-        lastUpdated: v.last_updated || 0,
+        // open_timestamp is set by Rust on vault creation; always a valid unix ts
+        openedAt: v.open_timestamp || v.openedAt || 0,
+        lastUpdated: v.last_updated || v.lastUpdated || 0,
         openFeeSats: v.open_fee_paid_sats || 0,
         ownerPubkey: v.owner_pubkey || '',
         taprootTxid: v.taproot_txid || '',
@@ -125,7 +131,7 @@ export default function Dashboard() {
       const activity = []
       normalized.forEach(v => {
         if (v.openedAt) activity.push({ type:'vault_open', ts:v.openedAt, sats:v.collateralSats, vault:v.id })
-        if (v.debt > 0) activity.push({ type:'mint', ts:(v.lastUpdated || v.openedAt+60), amount:v.debt, vault:v.id })
+        if (v.debt > 0) activity.push({ type:'mint', ts:(v.lastUpdated || v.openedAt + 60), amount:v.debt, vault:v.id })
       })
       activity.sort((a,b) => b.ts - a.ts)
       if (activity.length > 0) setTxHistory(activity)
@@ -140,7 +146,7 @@ export default function Dashboard() {
 
   const vusdBalance = vusdBal || wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
-  const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active')
+  const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active' || v.state === 'open' || v.state === 'active')
   const vaultBackedUp = localStorage.getItem('vultd-vault-backed-up') === 'true'
   const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
   const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)

@@ -57,6 +57,7 @@ export default function Settings() {
   const { theme, toggleTheme, network, setNetwork, lock } = useApp()
   const [showFull, setShowFull] = useState(false)
   const [notifications, setNotifications] = useState(true)
+  const [showSeed, setShowSeed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [nodeInfo, setNodeInfo] = useState({ blockcount: null, peers: null })
   const [btcConnected, setBtcConnected] = useState(null)
@@ -172,15 +173,36 @@ export default function Settings() {
             <Lock size={13}/> Lock Now
           </button>
         </Row>
-        <Row label="View Seed Phrase" desc="Back up your 12-word recovery phrase" tip="Store it somewhere safe — never share it">
-          <button onClick={() => {
-            const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
-            const seed = w.seedPhrase || 'No seed phrase stored'
-            alert('Your seed phrase:\n\n' + seed + '\n\nWrite this down and store it safely.')
-          }} className="btn btn-secondary btn-sm">
-            <Eye size={13}/> Reveal
-          </button>
+        <Row label="View Seed Phrase" desc="Back up your 24-word recovery phrase" tip="Store it somewhere safe — never share it">
+          {showSeed ? (
+            <button onClick={() => setShowSeed(false)} className="btn btn-secondary btn-sm">
+              <Eye size={13}/> Hide
+            </button>
+          ) : (
+            <button onClick={() => setShowSeed(true)} className="btn btn-secondary btn-sm">
+              <Eye size={13}/> Reveal
+            </button>
+          )}
         </Row>
+        {showSeed && (() => {
+          const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+          const words = (w.seedPhrase || '').split(' ').filter(Boolean)
+          return (
+            <div style={{ marginBottom:8, padding:16, borderRadius:8, background:'var(--card2)', border:'1px solid var(--border)' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:8 }}>
+                {words.length > 0 ? words.map((word, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)' }}>
+                    <span style={{ fontSize:10, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace', minWidth:16 }}>{i+1}.</span>
+                    <span style={{ fontSize:13, fontWeight:500 }}>{word}</span>
+                  </div>
+                )) : (
+                  <div style={{ gridColumn:'1/-1', color:'var(--muted-fg)', fontSize:13 }}>No seed phrase stored.</div>
+                )}
+              </div>
+              <div style={{ marginTop:10, fontSize:12, color:'var(--muted-fg)' }}>Write these words down in order and store them somewhere safe. Never share them with anyone.</div>
+            </div>
+          )
+        })()}
         <Row label="Change PIN" desc="Update your wallet PIN" tip="You will need to re-enter your current PIN" last>
           <button onClick={() => {
             const current = prompt('Enter current PIN:')

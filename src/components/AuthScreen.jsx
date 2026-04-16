@@ -1,19 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { Shield, RefreshCw, AlertCircle, ChevronLeft, Copy, Check, Eye, EyeOff } from 'lucide-react'
+import * as bip39 from 'bip39'
 
-// ── Real BIP39 wordlist (first 256 words — enough for demo; full list loaded async) ──
-// We use a simplified approach: generate entropy, hash to words
-// For production: import full 2048-word BIP39 list
-
-const BIP39 = ["abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse","access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act","action","actor","actress","actual","adapt","add","addict","address","adjust","admit","adult","advance","advice","aerobic","afford","afraid","again","age","agent","agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert","alien","all","alley","allow","almost","alone","alpha","already","also","alter","always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","anger","angle","angry","animal","ankle","announce","annual","another","answer","antenna","antique","anxiety","apart","appear","apple","approve","april","arch","arctic","area","arena","argue","arm","armed","armor","army","around","arrange","arrest","arrive","arrow","art","artefact","artist","artwork","ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack","attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn","average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis","baby","balance","bamboo","banana","banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach","beauty","because","become","beef","before","begin","behave","behind","believe","below","belt","bench","benefit","best","betray","better","between","beyond","bicycle","bid","bike","bind","biology","bird","birth","bitter","black","blade","blame","blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur","blush","board","boat","body","boil","bomb","bone","book","boost","border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain","brand","brave","breeze","brick","bridge","brief","bright","bring","brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy","budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger","burst","bus","business","busy","butter","buyer","buzz","cabbage","cabin","cable","cactus","cage","cake","call","calm","camera","camp","can","canal","cancel","candy","cannon","canvas","canyon","capable","capital","captain","car","carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle","casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave","census","chair","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef","cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle","chunk","cigar","cinnamon","circle","citizen","city","civil","claim","clap","clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb","clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump","cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect","color","column","combine","come","comfort","comic","common","company","concert","conduct","confirm","congress","connect","consider","control","convince","cook","cool","copper","copy","coral","core","corn","correct","cost","cotton","couch","country","couple","course","cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater","crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush","cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve","cushion","custom","cute","cycle"]
-
-function genSeed(count = 12) {
-  const arr = []
-  for (let i = 0; i < count; i++) {
-    arr.push(BIP39[Math.floor(Math.random() * BIP39.length)])
-  }
-  return arr
+// Generate a proper BIP39 mnemonic using browser-native crypto entropy.
+// 256 bits → 24 words; 128 bits → 12 words.
+function genSeed(count = 24) {
+  const strength = count === 24 ? 256 : 128
+  return bip39.generateMnemonic(strength).split(' ')
 }
 
 // Simple deterministic BTC address from seed (for UI display — real derivation via vusd CLI in production)
@@ -222,7 +216,7 @@ export function SetupScreen() {
   const { createWallet, recoverWallet, network } = useApp()
   const [mode, setMode] = useState(null)       // null | 'new' | 'recover'
   const [step, setStep] = useState(1)           // 1=seed, 2=pin
-  const [wordCount, setWordCount] = useState(12)
+  const [wordCount, setWordCount] = useState(24)
   const [seed, setSeed] = useState([])
   const [rec, setRec] = useState('')
   const [pin, setPin] = useState('')

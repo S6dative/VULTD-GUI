@@ -166,13 +166,13 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
 
   const exportRecovery = async () => {
     try {
-      const rawBackup = await bridge.readVaultsRaw()
       const pkg = {
         vault_id: v.id,
         owner_pubkey: v.ownerPubkeyFull || v.ownerPubkey || '',
-        owner_seed_hint: 'stored in ~/.vusd/keystore.json',
-        vaults_backup: rawBackup,
-        created_at: new Date().toISOString(),
+        locked_btc_sats: v.collateralSats || 0,
+        debt_vusd: v.debt || 0,
+        open_date: v.openedAt ? new Date(v.openedAt * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+        seed_phrase_hint: 'Your 24-word seed phrase is in Settings → Security → View Seed Phrase',
         instructions: 'To recover: restore vaults.json to ~/.vusd/ and run: vusd health --vault ' + v.id,
       }
       await navigator.clipboard.writeText(JSON.stringify(pkg, null, 2))
