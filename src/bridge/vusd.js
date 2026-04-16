@@ -4,6 +4,7 @@ function mock(channel, args) {
   if (channel === 'btcBalance') return Promise.resolve(0)
   if (channel === 'vusdBalance') return Promise.resolve({ balance: 0 })
   if (channel === 'readVaults') return Promise.resolve([])
+  if (channel === 'readVaultsRaw') return Promise.resolve('{}')
   if (channel === 'vusd') {
     const cmd = args?.[0]
     if (cmd === 'balance') return Promise.resolve({ balance: 0, outputs: 0 })
@@ -25,6 +26,7 @@ export const bridge = {
   btcNewAddress:   ()              => ipc('btcNewAddress'),
   vusdBalance:     ()              => ipc('vusdBalance'),
   readVaults:      ()              => ipc('readVaults'),
+  readVaultsRaw:   ()              => ipc('readVaultsRaw'),
   readWallet:      ()              => ipc('readWallet'),
   faucet:          (addr)          => ipc('faucet', addr),
   oracle:          ()              => ipc('vusd', ['oracle']),

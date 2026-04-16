@@ -158,6 +158,15 @@ ipcMain.handle("read-vaults", async () => {
   } catch(e) { console.error("read-vaults:", e.message); return {} }
 })
 
+ipcMain.handle("read-vaults-raw", async () => {
+  try {
+    if (IS_WIN) {
+      return await readWslFile("/home/s6d/.vusd/vaults.json")
+    }
+    return fs.readFileSync(VAULTS_PATH, "utf8")
+  } catch(e) { console.error("read-vaults-raw:", e.message); return "{}" }
+})
+
 ipcMain.handle("read-wallet", async () => {
   try {
     if (IS_WIN) {

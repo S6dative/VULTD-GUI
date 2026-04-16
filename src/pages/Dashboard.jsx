@@ -141,6 +141,7 @@ export default function Dashboard() {
   const vusdBalance = vusdBal || wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
   const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active')
+  const vaultBackedUp = localStorage.getItem('vultd-vault-backed-up') === 'true'
   const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
   const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)
   const btcAddr = wallet?.address || ''
@@ -311,6 +312,19 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Vault backup reminder */}
+      {openVaults.length > 0 && !vaultBackedUp && (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'10px 14px', borderRadius:10, background:'var(--warning-dim)', border:'1px solid rgba(245,158,11,0.25)', fontSize:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <AlertTriangle size={14} style={{ color:'var(--warning)', flexShrink:0 }} />
+            <span style={{ color:'var(--warning)' }}>Back up your vault recovery key — needed to recover your vault if this device is lost.</span>
+          </div>
+          <button onClick={() => navigate('/vaults')} className="btn btn-secondary btn-sm" style={{ whiteSpace:'nowrap', fontSize:11, borderColor:'rgba(245,158,11,0.4)', color:'var(--warning)' }}>
+            Vaults → Export
+          </button>
+        </div>
+      )}
 
       {/* Activity */}
       <div className="card">

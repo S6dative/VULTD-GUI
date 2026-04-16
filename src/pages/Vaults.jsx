@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp, Eye, EyeOff, Copy } from 'lucide-react'
+import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp, Eye, EyeOff, Copy, Shield, Download } from 'lucide-react'
 import { useState as uS } from 'react'
 import { bridge } from '../bridge/vusd'
 import { useApp } from '../contexts/AppContext'
@@ -70,6 +70,7 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
           lastUpdated: v.last_updated || 0,
           openFeeSats: v.open_fee_paid_sats || 0,
           ownerPubkey: v.owner_pubkey || '',
+          ownerPubkeyFull: v.owner_pubkey_full || '',
           taprootTxid: v.taproot_txid || '',
           liq_price: v.liq_price || null,
           health_cr: v.health_cr || null,
@@ -160,7 +161,26 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
   const [expanded, setExpanded] = uS(false)
   const [showPubkey, setShowPubkey] = uS(false)
   const [copied, setCopied] = uS(false)
+  const [exportCopied, setExportCopied] = uS(false)
   const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
+
+  const exportRecovery = async () => {
+    try {
+      const rawBackup = await bridge.readVaultsRaw()
+      const pkg = {
+        vault_id: v.id,
+        owner_pubkey: v.ownerPubkeyFull || v.ownerPubkey || '',
+        owner_seed_hint: 'stored in ~/.vusd/keystore.json',
+        vaults_backup: rawBackup,
+        created_at: new Date().toISOString(),
+        instructions: 'To recover: restore vaults.json to ~/.vusd/ and run: vusd health --vault ' + v.id,
+      }
+      await navigator.clipboard.writeText(JSON.stringify(pkg, null, 2))
+      setExportCopied(true)
+      localStorage.setItem('vultd-vault-backed-up', 'true')
+      setTimeout(() => setExportCopied(false), 3000)
+    } catch(e) { console.error('export recovery:', e) }
+  }
 
   // Compute liq price from live btcPrice and current collateral/debt so it
   // updates dynamically even when vaults.json doesn't have the field.
@@ -241,6 +261,22 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
             </div>
           </div>
 
+          {/* Vault Recovery Key */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+              <Shield size={12} style={{ color:'var(--warning)' }} />
+              <span style={{ fontSize:12, fontWeight:600, color:'var(--warning)' }}>Vault Recovery Key</span>
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted-fg)', marginBottom:10, lineHeight:1.5 }}>
+              Export a recovery package containing your vault ID, owner pubkey, and vault backup. Store it securely — anyone with your owner seed and this file can access your vault.
+            </div>
+            <button onClick={exportRecovery}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:7, border:'1px solid var(--warning)', background:'var(--warning-dim)', color:'var(--warning)', fontSize:12, fontWeight:500, cursor:'pointer', width:'100%', justifyContent:'center' }}>
+              <Download size={12} />
+              {exportCopied ? 'Recovery package copied to clipboard!' : 'Export Recovery Package'}
+            </button>
+          </div>
+
           {/* Actions */}
           <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, display:'flex', flexDirection:'column', gap:8 }}>
             <AddCollateralPanel vaultId={v.id} isSignet={isSignet} v={v} btcPrice={btcPrice} />
@@ -292,6 +328,7 @@ export default function Vaults() {
         lastUpdated: v.last_updated || 0,
         openFeeSats: v.open_fee_paid_sats || 0,
         ownerPubkey: v.owner_pubkey || '',
+        ownerPubkeyFull: v.owner_pubkey_full || '',
         taprootTxid: v.taproot_txid || '',
       })))
     }).catch(() => {}).finally(() => setLoadingVaults(false))
@@ -327,6 +364,7 @@ export default function Vaults() {
           lastUpdated: v.last_updated || 0,
           openFeeSats: v.open_fee_paid_sats || 0,
           ownerPubkey: v.owner_pubkey || '',
+          ownerPubkeyFull: v.owner_pubkey_full || '',
           taprootTxid: v.taproot_txid || '',
         })))
       }
