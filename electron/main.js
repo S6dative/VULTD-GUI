@@ -57,7 +57,7 @@ function run(bin, args, env={}) {
   return new Promise((resolve, reject) => {
     const spawnEnv = { ...process.env, ...env }
     const proc = spawn(bin, args, { env: spawnEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true })
-    const timeout = setTimeout(() => { proc.kill(); console.error("TIMEOUT:", bin, args.join(" ")); reject(new Error("timeout")) }, 8000)
+    const timeout = setTimeout(() => { proc.kill(); console.error("TIMEOUT:", bin, args.join(" ")); reject(new Error("timeout")) }, 60000)
     let out="", err=""
     proc.stdout.on("data", d => out += d)
     proc.stderr.on("data", d => err += d)
@@ -128,48 +128,30 @@ ipcMain.handle("bitcoin-cli", async (_, args) => {
 
 ipcMain.handle("read-vaults", async () => {
   try {
-    const bin = IS_WIN ? "wsl.exe" : path.join(app.getAppPath(), "..", "vusd")
-    // Read vault ids from vaults.json, then get health for each
     let vaultData = {}
-    try {
-      let rawV
-      if (IS_WIN) {
+    if (IS_WIN) {
+      try {
         const rv = await run("wsl.exe", ["-e", VUSD_WSL, "cat-vaults"], {})
-        // run() parses JSON automatically - rv IS the vault object
+        // run() parses JSON automatically — rv IS the vault object
         if (typeof rv === "object" && rv !== null && !rv.output) {
           vaultData = rv
-        } else {
-          rawV = rv.output || ""
+        } else if (rv && rv.output) {
+          try { vaultData = JSON.parse(rv.output) } catch {}
         }
-      } else {
-        rawV = fs.readFileSync(VAULTS_PATH, "utf8")
-      }
-      if (!Object.keys(vaultData).length && rawV) {
-        vaultData = JSON.parse(rawV)
-      }
-    } catch(fe) { console.error("read-vaults file:", fe.message) }
-    // For each vault, get health via CLI
+      } catch(fe) { console.error("read-vaults cat-vaults:", fe.message) }
+    } else {
+      try { vaultData = JSON.parse(fs.readFileSync(VAULTS_PATH, "utf8")) } catch(fe) { console.error("read-vaults file:", fe.message) }
+    }
+    // Return cat-vaults data directly — no per-vault health calls.
+    // health --vault takes 8-12s (oracle query) and always timed out in the GUI.
+    // Health data is fetched on-demand via the vusd IPC handler when needed.
     const result = {}
     for (const [id, v] of Object.entries(vaultData)) {
-      try {
-        const args = IS_WIN ? ["-e", VUSD_WSL, "health", "--vault", id] : ["health", "--vault", id]
-        const r = await run(bin, args, IS_WIN ? {} : VENV)
-        const text = r.output || ""
-        const stateMatch = text.match(/State:\s*(\w+)/)
-        const lockedMatch = text.match(/Locked:\s*([\d]+)\s*sats/)
-        const debtMatch = text.match(/Debt:\s*([\d.]+)/)
-        const crMatch = text.match(/CR:\s*([\d.]+)%/)
-        const liqMatch = text.match(/Liq\.price:\s*\$?([\d.,]+)/)
-        result[id] = {
-          ...v,
-          state: stateMatch ? stateMatch[1].charAt(0)+stateMatch[1].slice(1).toLowerCase() : v.state,
-          locked_btc: lockedMatch ? parseInt(lockedMatch[1]) : v.locked_btc,
-          debt_vusd: debtMatch ? parseFloat(debtMatch[1]) : (v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd),
-          health_cr: crMatch ? parseFloat(crMatch[1]) : null,
-          liq_price: liqMatch ? parseFloat(liqMatch[1].replace(/,/g, '')) : null,
-        }
-      } catch {
-        result[id] = { ...v, debt_vusd: v.debt_vusd > 1000 ? v.debt_vusd/1e18 : v.debt_vusd }
+      result[id] = {
+        ...v,
+        debt_vusd: typeof v.debt_vusd === "number" && v.debt_vusd > 1e15
+          ? v.debt_vusd / 1e18
+          : (v.debt_vusd || 0),
       }
     }
     return result
