@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight, ArrowUpRight, ArrowDownLeft, AlertTriangle } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { bridge } from '../bridge/vusd'
 import { useNavigate } from 'react-router-dom'
@@ -50,8 +50,6 @@ export default function Dashboard() {
         const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
         w.address = addr
         localStorage.setItem('vultd-wallet', JSON.stringify(w))
-        if (window.electron?.setNetwork) {} // trigger re-render
-        setWallet && setWallet(w)
       }
     } catch(e) { console.error('generate:', e) }
     setGenerating(false)

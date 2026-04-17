@@ -5,6 +5,7 @@ function mock(channel, args) {
   if (channel === 'vusdBalance') return Promise.resolve({ balance: 0 })
   if (channel === 'readVaults') return Promise.resolve([])
   if (channel === 'readVaultsRaw') return Promise.resolve('{}')
+  if (channel === 'nodeInfo') return Promise.resolve({ blockcount: null, peers: 0 })
   if (channel === 'vusd') {
     const cmd = args?.[0]
     if (cmd === 'balance') return Promise.resolve({ balance: 0, outputs: 0 })
@@ -39,6 +40,7 @@ export const bridge = {
   health:          (vault)         => ipc('vusd', ['health', '--vault', vault]),
   send:            (to, amount)    => ipc('vusd', ['send', '--to', to, '--amount', String(amount)]),
   listTransactions: ()              => ipc('listTransactions'),
+  nodeInfo:         ()              => ipc('nodeInfo'),
 }
 
 export const vusd = bridge

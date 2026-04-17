@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import { bridge } from '../bridge/vusd'
 import { Coins, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react'
-import { BTC_PRICE, formatUsd, satsToUsd, truncateVaultId, healthColor } from '../data'
+import { formatUsd, truncateVaultId, healthColor } from '../data'
+import { useApp } from '../contexts/AppContext'
 
 export default function MintRepay() {
+  const { btcPrice: liveBtcPrice } = useApp()
+  const btcPriceVal = liveBtcPrice || 85000
   const [vaultId, setVaultId] = useState('')
   const [tab, setTab] = useState('mint')
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [vusdWalletBal, setVusdWalletBal] = useState(0)
 
   const [openVaults, setOpenVaults] = useState([])
 
@@ -21,23 +25,37 @@ export default function MintRepay() {
         collateralSats: v.locked_btc || 0,
         debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
         health: v.locked_btc && v.debt_vusd > 0
-          ? Math.round((v.locked_btc / 100000000 * 85000) / v.debt_vusd * 100)
+          ? Math.round((v.locked_btc / 100000000 * btcPriceVal) / ((v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : v.debt_vusd)) * 100)
           : 999,
       }))
       setOpenVaults(normalized.filter(v => v.state === 'Open' || v.state === 'Active'))
     }).catch(() => {})
+    bridge.readWallet().then(w => {
+      if (w && typeof w.balance === 'number') setVusdWalletBal(w.balance)
+    }).catch(() => {})
   }, [])
   const vault = openVaults.find(v=>v.id===vaultId)
-  const collUsd = vault ? satsToUsd(vault.collateralSats, BTC_PRICE) : 0
+  const collUsd = vault ? (vault.collateralSats / 100000000) * btcPriceVal : 0
   const maxMint = vault ? Math.max(0, Math.floor(collUsd/1.5 - vault.debt)) : 0
+  const maxRepay = vault ? Math.min(vault.debt, vusdWalletBal) : 0
 
   const handle = async () => {
     if (!vault||!amount) return
+    const amtNum = parseFloat(amount)
+    if (tab === 'mint' && amtNum > maxMint) {
+      setMsg({ ok: false, text: `Amount exceeds max mintable (${formatUsd(maxMint)})` }); return
+    }
+    if (tab === 'repay' && amtNum > vault.debt) {
+      setMsg({ ok: false, text: `Amount exceeds vault debt (${formatUsd(vault.debt)})` }); return
+    }
+    if (tab === 'repay' && amtNum > vusdWalletBal) {
+      setMsg({ ok: false, text: `Insufficient VUSD balance (have ${formatUsd(vusdWalletBal)})` }); return
+    }
     setLoading(true); setMsg(null)
     try {
-      if (tab === 'mint') await bridge.mint(vault.id, parseFloat(amount))
-      else await bridge.repay(vault.id, parseFloat(amount))
-      setMsg({ ok: true, text: tab==='mint' ? 'Minted '+formatUsd(parseFloat(amount))+' VUSD' : 'Repaid '+formatUsd(parseFloat(amount))+' VUSD' })
+      if (tab === 'mint') await bridge.mint(vault.id, amtNum)
+      else await bridge.repay(vault.id, amtNum)
+      setMsg({ ok: true, text: tab==='mint' ? 'Minted '+formatUsd(amtNum)+' VUSD' : 'Repaid '+formatUsd(amtNum)+' VUSD' })
       setAmount('')
     } catch (e) {
       setMsg({ ok: false, text: (e.message || 'Transaction failed') })
@@ -118,12 +136,18 @@ export default function MintRepay() {
             </label>
             <div style={{position:'relative',marginBottom:8}}>
               <input value={amount} onChange={e=>setAmount(e.target.value)} type="number"
-                placeholder={tab==='mint'?`Max: ${formatUsd(maxMint)}`:`Max: ${formatUsd(vault.debt)}`}
+                placeholder={tab==='mint'?`Max: ${formatUsd(maxMint)}`:`Max: ${formatUsd(maxRepay)}`}
                 style={{width:'100%',padding:'10px 12px',borderRadius:8,background:'#111',border:'1px solid #262626',color:'#fafafa',outline:'none',fontFamily:'Space Mono',fontSize:14}}/>
             </div>
             {tab==='mint' && (
               <div style={{fontSize:12,color:'#737373',marginBottom:16}}>
                 Max mintable: <span style={{fontFamily:'Space Mono',color:'#a3a3a3'}}>{formatUsd(maxMint)}</span> VUSD at 150% CR
+              </div>
+            )}
+            {tab==='repay' && (
+              <div style={{fontSize:12,color:'#737373',marginBottom:16}}>
+                Max repayable: <span style={{fontFamily:'Space Mono',color:'#a3a3a3'}}>{formatUsd(maxRepay)}</span> VUSD
+                {vusdWalletBal < vault?.debt ? <span style={{color:'#f59e0b'}}> (limited by wallet balance: {formatUsd(vusdWalletBal)})</span> : null}
               </div>
             )}
             {msg && (
@@ -141,4 +165,4 @@ export default function MintRepay() {
       )}
     </div>
   )
-}const truncate = id => { const s=String(id||''); const h=s.replace('vault:',''); return 'vault:'+h.slice(0,8)+'...'+h.slice(-8) }
+}
