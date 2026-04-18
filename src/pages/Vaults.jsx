@@ -524,8 +524,10 @@ export default function Vaults() {
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Vault Summary</div>
               <SummaryRow label={isSignet ? 'sBTC Collateral' : 'BTC Collateral'} value={btcVal > 0 ? btcVal.toFixed(8)+' BTC ('+(collateralSats.toLocaleString())+' sats)' : '--'} />
               <SummaryRow label='LTV' value={ltv+'%'} />
+              <SummaryRow label='Collateral Ratio' value={btcVal > 0 ? Math.round(100/(ltv/100))+'%' : '--'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />
               <SummaryRow label='VUSD to Mint' value={btcVal > 0 ? fmt(vusdToMint) : '--'} />
+              <SummaryRow label='Liq. Price' value={btcVal > 0 && vusdToMint > 0 ? '$'+Math.round((vusdToMint * 1.1) / btcVal).toLocaleString() : '--'} color='var(--danger)' />
               <SummaryRow label='After Fees' value={btcVal > 0 ? (btcVal - networkFee).toFixed(8)+isSignet ? ' sBTC locked' : ' BTC locked' : '--'} />
               <SummaryRow label='Network Fee' value={networkFee.toFixed(8)+(isSignet ? " sBTC" : " BTC")} />
               <SummaryRow label='System Fee' value={btcVal > 0 ? fmt(systemFee) : '--'} />

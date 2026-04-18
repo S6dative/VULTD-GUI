@@ -57,6 +57,23 @@ export default function MintRepay() {
       else await bridge.repay(vault.id, amtNum)
       setMsg({ ok: true, text: tab==='mint' ? 'Minted '+formatUsd(amtNum)+' VUSD' : 'Repaid '+formatUsd(amtNum)+' VUSD' })
       setAmount('')
+      // Refresh vault and VUSD balance after operation
+      bridge.readVaults().then(data => {
+        const entries = Array.isArray(data) ? data : Object.entries(data || {})
+        const normalized = entries.map(([id, v]) => ({
+          id: String(id || ''),
+          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
+          collateralSats: v.locked_btc || 0,
+          debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
+          health: v.locked_btc && v.debt_vusd > 0
+            ? Math.round((v.locked_btc / 100000000 * btcPriceVal) / ((v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : v.debt_vusd)) * 100)
+            : 999,
+        }))
+        setOpenVaults(normalized.filter(v => v.state === 'Open' || v.state === 'Active'))
+      }).catch(() => {})
+      bridge.readWallet().then(w => {
+        if (w && typeof w.balance === 'number') setVusdWalletBal(w.balance)
+      }).catch(() => {})
     } catch (e) {
       setMsg({ ok: false, text: (e.message || 'Transaction failed') })
     }
