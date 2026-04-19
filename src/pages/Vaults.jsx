@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp, Eye, EyeOff, Copy, Shield, Download } from 'lucide-react'
 import { useState as uS } from 'react'
-import { bridge } from '../bridge/vusd'
+import { bridge, getVaultType, truncateVaultId, mainnetConfirm } from '../bridge/vusd'
 import { useApp } from '../contexts/AppContext'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const fmtSats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
-const truncate = id => { const s=String(id||''); const h=s.replace('vault:',''); return 'vault:'+h.slice(0,8)+'...'+h.slice(-8) }
 const healthColor = h => h >= 200 ? 'var(--success)' : h >= 150 ? 'var(--warning)' : 'var(--danger)'
+
+const VAULT_TYPE_LABEL = { Classic: 'Classic', QuantumStd: 'Quantum Std', QuantumUltra: 'Quantum Ultra' }
 
 const PRESETS = [
   { ltv:33, label:'Conservative', sub:'200% CR', color:'var(--success)' },
@@ -200,8 +201,11 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
           </div>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-              <span style={{ fontFamily:'Geist Mono, monospace', fontSize:12, fontWeight:600 }}>{v.id.slice(0,14)}...{v.id.slice(-8)}</span>
+              <span style={{ fontFamily:'Geist Mono, monospace', fontSize:12, fontWeight:600 }}>{truncateVaultId(v.id)}</span>
               <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, background:stateBg, color:stateColor, fontWeight:500 }}>{v.state}</span>
+              {getVaultType(v.id) !== 'Classic' && (
+                <span title={VAULT_TYPE_LABEL[getVaultType(v.id)]} style={{ fontSize:11, padding:'1px 5px', borderRadius:4, background:'rgba(139,92,246,0.15)', color:'#a78bfa', fontWeight:600, cursor:'default' }}>⚛</span>
+              )}
             </div>
             <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>{(v.collateralSats||0).toLocaleString()} sats</div>
           </div>
@@ -295,6 +299,7 @@ export default function Vaults() {
   const [btcAmount, setBtcAmount] = useState('')
   const [inputMode, setInputMode] = useState('btc') // 'btc' | 'sats'
   const [ltv, setLtv] = useState(44)
+  const [vaultType, setVaultType] = useState('Classic') // 'Classic' | 'QuantumStd' | 'QuantumUltra'
   const [opening, setOpening] = useState(false)
   const [openError, setOpenError] = useState(null)
   const [openSuccess, setOpenSuccess] = useState(false)
@@ -353,10 +358,11 @@ export default function Vaults() {
 
   const handleOpen = async () => {
     if (!canOpen) return
+    if (!mainnetConfirm(network, `open a vault with ${collateralSats.toLocaleString()} sats collateral`)) return
     setOpening(true)
     setOpenError(null)
     try {
-      await bridge.openVault(collateralSats)
+      await bridge.openVault(collateralSats, vaultType)
       setOpenSuccess(true)
       setBtcAmount('')
       setInputMode('btc')
@@ -500,6 +506,34 @@ export default function Vaults() {
               </div>
             </div>
 
+            {/* Vault Type Selector */}
+            <div className='card'>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Vault Type</div>
+              <div style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:12 }}>Classic uses secp256k1 only. Quantum adds post-quantum key protection (requires keystore with --quantum flag).</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {[
+                  { id:'Classic', label:'Classic', sub:'secp256k1 Schnorr', color:'var(--fg)' },
+                  { id:'QuantumStd', label:'Quantum Standard ⚛', sub:'Kyber + Dilithium (ML-DSA-65)', color:'#a78bfa' },
+                  { id:'QuantumUltra', label:'Quantum Ultra ⚛', sub:'Kyber + SPHINCS+ (~29KB sig)', color:'#c4b5fd' },
+                ].map(opt => (
+                  <button key={opt.id} onClick={() => setVaultType(opt.id)}
+                    style={{
+                      display:'flex', alignItems:'center', justifyContent:'space-between',
+                      padding:'10px 14px', borderRadius:8, border:'1px solid',
+                      borderColor: vaultType === opt.id ? opt.color : 'var(--border)',
+                      background: vaultType === opt.id ? 'rgba(167,139,250,0.08)' : 'var(--bg)',
+                      cursor:'pointer', textAlign:'left',
+                    }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color: opt.color }}>{opt.label}</div>
+                      <div style={{ fontSize:11, color:'var(--muted-fg)', marginTop:2 }}>{opt.sub}</div>
+                    </div>
+                    {vaultType === opt.id && <span style={{ color: opt.color, fontSize:16 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Info */}
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>Information</div>
@@ -523,6 +557,7 @@ export default function Vaults() {
             <div className='card'>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--muted-fg)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Vault Summary</div>
               <SummaryRow label={isSignet ? 'sBTC Collateral' : 'BTC Collateral'} value={btcVal > 0 ? btcVal.toFixed(8)+' BTC ('+(collateralSats.toLocaleString())+' sats)' : '--'} />
+              <SummaryRow label='Vault Type' value={VAULT_TYPE_LABEL[vaultType]} color={vaultType !== 'Classic' ? '#a78bfa' : undefined} />
               <SummaryRow label='LTV' value={ltv+'%'} />
               <SummaryRow label='Collateral Ratio' value={btcVal > 0 ? Math.round(100/(ltv/100))+'%' : '--'} />
               <SummaryRow label='Risk Level' value={preset.label} color={preset.color} />

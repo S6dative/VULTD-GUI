@@ -155,4 +155,47 @@ export const bridge = {
   send:            (to, amount) => vusd.send(to, amount),
   listTransactions:() => isElectron ? window.electron.listTransactions().catch(() => []) : Promise.resolve([]),
   nodeInfo:        () => isElectron ? window.electron.nodeInfo().catch(() => ({ blockcount: null, peers: 0 })) : Promise.resolve({ blockcount: null, peers: 0 }),
+  migrateVault:    (vaultId, target) => isElectron
+    ? window.electron.vusd(['--signet', 'migrate-vault', '--vault', String(vaultId), '--to', String(target)])
+        .catch(e => ({ error: e.message }))
+    : Promise.resolve({ error: 'Not connected' }),
+  keystoreStatus:  () => vusd.keystoreStatus(),
+}
+
+// ── Vault type helpers ────────────────────────────────────────────────────────
+
+/** Derive VaultType string from a vault ID's prefix. */
+export function getVaultType(id) {
+  if (!id) return 'Classic'
+  if (id.startsWith('vault-qu:')) return 'QuantumUltra'
+  if (id.startsWith('vault-q:'))  return 'QuantumStd'
+  return 'Classic'
+}
+
+/** Shorten a vault ID for display: preserve prefix + first8 + '…' + last8 hex chars. */
+export function truncateVaultId(id) {
+  if (!id) return ''
+  const prefixEnd = id.indexOf(':') + 1
+  // Find second colon for vault-q: and vault-qu: prefixes
+  const secondColon = id.indexOf(':', prefixEnd)
+  const hexStart = secondColon > 0 ? secondColon + 1 : prefixEnd
+  const prefix = id.slice(0, hexStart)
+  const hex    = id.slice(hexStart)
+  if (hex.length <= 16) return id
+  return `${prefix}${hex.slice(0, 8)}…${hex.slice(-8)}`
+}
+
+// ── Confirmation helper (mainnet guard) ───────────────────────────────────────
+
+/**
+ * Show a confirmation dialog on mainnet before destructive operations.
+ * Returns true if the user confirms (or if on testnet/signet).
+ * `network`: string from node config, e.g. 'mainnet', 'signet', 'testnet'
+ * `action`:  human-readable description of the action
+ */
+export function mainnetConfirm(network, action) {
+  if (network !== 'mainnet') return true
+  return window.confirm(
+    `⚠ MAINNET — Real Bitcoin at stake\n\nYou are about to: ${action}\n\nThis cannot be undone. Confirm?`
+  )
 }

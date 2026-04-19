@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, CheckCircle, AlertCircle, Shield, HelpCircle, Moon, Sun, Lock, Zap, Eye } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
-import { bridge } from '../bridge/vusd'
+import { bridge, getVaultType } from '../bridge/vusd'
 
 function Tip({ text }) {
   return (
@@ -61,6 +61,9 @@ export default function Settings() {
   const [refreshing, setRefreshing] = useState(false)
   const [nodeInfo, setNodeInfo] = useState({ blockcount: null, peers: null })
   const [btcConnected, setBtcConnected] = useState(null)
+  const [classicVaults, setClassicVaults] = useState([])
+  const [migrateResults, setMigrateResults] = useState({})
+  const [migrating, setMigrating] = useState({})
   const isLight = theme === 'light'
 
   const fetchNodeInfo = async () => {
@@ -80,7 +83,22 @@ export default function Settings() {
     setRefreshing(false)
   }
 
-  useEffect(() => { fetchNodeInfo() }, [])
+  useEffect(() => {
+    fetchNodeInfo()
+    const interval = setInterval(fetchNodeInfo, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Load classic vaults for migration wizard
+  useEffect(() => {
+    bridge.readVaults().then(data => {
+      if (!data) return
+      const classics = Object.entries(data)
+        .filter(([id]) => getVaultType(id) === 'Classic')
+        .map(([id, v]) => ({ id, state: v.state || 'Unknown', debt: v.debt_vusd || 0 }))
+      setClassicVaults(classics)
+    }).catch(() => {})
+  }, [])
 
   return (
     <div style={{ display:'flex', flexDirection:'column', maxWidth:560 }}>
@@ -219,6 +237,52 @@ export default function Settings() {
           </button>
         </Row>
       </div>
+
+      {/* Quantum Migration Wizard */}
+      {classicVaults.length > 0 && (
+        <div className="card" style={{ marginBottom:16 }}>
+          <h2 style={{ fontSize:13, fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em', color:'#a78bfa', display:'flex', alignItems:'center', gap:6 }}>
+            ⚛ Quantum Vault Migration
+          </h2>
+          <p style={{ fontSize:12, color:'var(--muted-fg)', marginBottom:14 }}>
+            Upgrade your Classic vaults to Quantum Standard for post-quantum key protection. Requires keystore initialized with <code style={{ fontFamily:'Geist Mono,monospace', background:'var(--card2)', padding:'1px 4px', borderRadius:3 }}>--quantum</code>.
+          </p>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {classicVaults.map(v => (
+              <div key={v.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:8, background:'var(--card2)', border:'1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontSize:12, fontFamily:'Geist Mono, monospace', fontWeight:500 }}>{v.id.slice(0,22)}...{v.id.slice(-8)}</div>
+                  <div style={{ fontSize:11, color:'var(--muted-fg)', marginTop:2 }}>{v.state}{v.debt > 0 ? ` · Debt: $${(v.debt/1e18||v.debt).toFixed(2)}` : ''}</div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  {migrateResults[v.id] && (
+                    <span style={{ fontSize:11, color: migrateResults[v.id].ok ? 'var(--success)' : 'var(--danger)' }}>
+                      {migrateResults[v.id].ok ? '✅ Migrated' : '✗ ' + migrateResults[v.id].err}
+                    </span>
+                  )}
+                  <button
+                    disabled={migrating[v.id] || !!migrateResults[v.id]?.ok}
+                    onClick={async () => {
+                      setMigrating(m => ({ ...m, [v.id]: true }))
+                      try {
+                        const res = await bridge.migrateVault(v.id, 'quantum-std')
+                        const out = String(res?.output || res || '')
+                        if (out.includes('error') || out.includes('Error') || res?.error) throw new Error(res?.error || out)
+                        setMigrateResults(r => ({ ...r, [v.id]: { ok: true } }))
+                      } catch(e) {
+                        setMigrateResults(r => ({ ...r, [v.id]: { ok: false, err: e.message } }))
+                      }
+                      setMigrating(m => ({ ...m, [v.id]: false }))
+                    }}
+                    style={{ fontSize:12, padding:'6px 12px', borderRadius:6, border:'1px solid #a78bfa', background:'rgba(167,139,250,0.1)', color:'#a78bfa', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    {migrating[v.id] ? 'Migrating...' : 'Migrate →⚛'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Danger */}
       <div className="card" style={{ marginBottom:24, borderColor:'rgba(239,68,68,0.3)' }}>

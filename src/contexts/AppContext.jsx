@@ -1,12 +1,14 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { bridge } from '../bridge/vusd'
 
 const AppContext = createContext(null)
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
 export function AppProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('vultd-theme') || 'dark')
   const [network, setNetwork] = useState(() => localStorage.getItem('vultd-network') || 'signet')
   const [unlocked, setUnlocked] = useState(false)
+  const [lockReason, setLockReason] = useState(null)
   const [hasWallet, setHasWallet] = useState(() => !!localStorage.getItem('vultd-wallet-exists'))
   const [btcPrice, setBtcPrice] = useState(() => parseFloat(localStorage.getItem('vultd-btcprice') || '85000'))
   const [btcSats, setBtcSats] = useState(() => {
@@ -35,7 +37,34 @@ export function AppProvider({ children }) {
     }
   }, [network])
 
-  const lock = () => setUnlocked(false)
+  const inactivityTimer = useRef(null)
+
+  const resetInactivityTimer = () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    inactivityTimer.current = setTimeout(() => {
+      setUnlocked(false)
+      setLockReason('Locked due to 15 minutes of inactivity.')
+    }, INACTIVITY_TIMEOUT_MS)
+  }
+
+  useEffect(() => {
+    if (!unlocked) {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+      return
+    }
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll']
+    events.forEach(e => window.addEventListener(e, resetInactivityTimer, { passive: true }))
+    resetInactivityTimer()
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetInactivityTimer))
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    }
+  }, [unlocked])
+
+  const lock = (reason) => {
+    setUnlocked(false)
+    setLockReason(reason || null)
+  }
 
   const refreshBtcAddress = async (force=false) => {
     try {
@@ -58,6 +87,7 @@ export function AppProvider({ children }) {
     const stored = localStorage.getItem('vultd-pin')
     if (stored && stored === pin) {
       setUnlocked(true)
+      setLockReason(null)
       setTimeout(() => refreshBtcAddress(), 500)
       return true
     }
@@ -118,7 +148,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       theme, setTheme, toggleTheme: () => setTheme(t => t === 'dark' ? 'light' : 'dark'),
       network, setNetwork,
-      unlocked, lock, unlock, setupPin,
+      unlocked, lock, unlock, lockReason, setupPin,
       hasWallet, wallet, createWallet, recoverWallet,
       btcPrice, setBtcPrice,
       btcSats, setBtcSats,
