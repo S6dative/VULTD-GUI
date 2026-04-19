@@ -124,7 +124,10 @@ export function AppProvider({ children }) {
       btcSats, setBtcSats,
       vusdBalance, setVusdBalance,
       refreshBtcAddress,
-
+      claimFaucet,
+      canClaim,
+      faucetClaims,
+      lastClaim,
     }}>
       {children}
     </AppContext.Provider>

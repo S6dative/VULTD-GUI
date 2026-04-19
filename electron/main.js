@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron")
+const { app, BrowserWindow, ipcMain, session } = require("electron")
 const { spawn, execFileSync } = require("child_process")
 const path = require("path")
 const fs = require("fs")
@@ -11,7 +11,12 @@ let currentNetwork = 'signet'
 const getRpcPort = () => currentNetwork === 'mainnet' ? 8332 : 38332
 const getRpcUser = () => currentNetwork === 'mainnet' ? 'bitcoin' : 'vusd'
 const getRpcPass = () => currentNetwork === 'mainnet' ? 'bitcoin' : 'vusd_rpc_password'
-const VENV = { VUSD_OWNER_SEED_HEX:"8f5c50385bab6671b1d856212066ec8195cbb51ba5c64f5b42d4da82b9478038", VUSD_SIGNING_KEY_HEX:"855a8421c4df8125ea2efb6da37966b8fa5712a0880124cbd724e54a87453f5e" }
+// Keys loaded from process env or OS keychain — never hardcoded
+const VENV = {
+  ...(process.env.VUSD_OWNER_SEED_HEX  ? { VUSD_OWNER_SEED_HEX:  process.env.VUSD_OWNER_SEED_HEX  } : {}),
+  ...(process.env.VUSD_SIGNING_KEY_HEX ? { VUSD_SIGNING_KEY_HEX: process.env.VUSD_SIGNING_KEY_HEX } : {}),
+  ...(process.env.VUSD_CHANGE_ADDRESS  ? { VUSD_CHANGE_ADDRESS:  process.env.VUSD_CHANGE_ADDRESS  } : {}),
+}
 const VAULTS_PATH = path.join(os.homedir(), ".vusd", "vaults.json")
 const WALLET_PATH = path.join(os.homedir(), ".vusd", "wallet.json")
 
@@ -89,6 +94,24 @@ function createWindow() {
     titleBarStyle:"hiddenInset", backgroundColor:"#0a0a0a",
     webPreferences:{ preload:path.join(__dirname,"preload.js"), contextIsolation:true, nodeIntegration:false }
   })
+
+  // Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline'; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com; " +
+          "connect-src 'self' https://api.coingecko.com https://api.coinbase.com http://127.0.0.1:* http://localhost:*; " +
+          "img-src 'self' data:;"
+        ]
+      }
+    })
+  })
+
   if (process.env.VITE_DEV_SERVER_URL) win.loadURL(process.env.VITE_DEV_SERVER_URL)
   else win.loadFile(path.join(__dirname,"../dist/index.html"))
 }

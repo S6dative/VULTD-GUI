@@ -4,11 +4,14 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron": "VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "package:linux": "vite build && electron-builder --linux",
+    "package:win": "vite build && electron-builder --win",
+    "package:mac": "vite build && electron-builder --mac"
   },
   "dependencies": {
     "@electron/remote": "^2.1.3",
@@ -26,6 +29,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.4",
@@ -33,7 +38,8 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "tailwindcss": "^4.2.2",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "wait-on": "^9.0.5"
   },
   "main": "electron/main.js",
   "build": {
