@@ -83,8 +83,6 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset, ctxBtcSats }) {
   const [amount, setAmount] = useState('')
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState(null)
-  const btcPriceVal = btcPrice || 85000
-
   const btcSats = ctxBtcSats || wallet?.btcSats || 0
   const vusdBalance = wallet?.vusdBalance || 0
   const sendValue = parseFloat(amount) || 0
@@ -196,6 +194,7 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
         }
       }).catch(() => {})
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBtcAddrLocal(wallet?.address || '')
     }
   }, [wallet?.address, network])
@@ -213,7 +212,7 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
     try {
       const addr = await bridge.btcNewAddress()
       if (addr) setOneTimeAddr(addr)
-    } catch(e) {}
+    } catch { /* ignore */ }
     setGenningOneTime(false)
   }
   const isBtc = asset === 'btc'
@@ -391,7 +390,6 @@ function TransferHistory() {
 
 export default function Transfer() {
   const { wallet, network, btcPrice, btcSats: ctxBtcSats } = useApp()
-  const isSignet = network === 'signet'
   const location = useLocation()
   const defaultAsset = new URLSearchParams(location.search).get('asset') || 'btc'
   const [tab, setTab] = useState('send')

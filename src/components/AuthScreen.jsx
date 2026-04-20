@@ -194,7 +194,7 @@ export function UnlockScreen() {
 function WordGrid({ words }) {
   const cols = words.length === 24 ? 4 : 3
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(\${cols}, 1fr)`, gap: 6, margin: '16px 0' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6, margin: '16px 0' }}>
       {words.map((w, i) => (
         <div key={i} style={{
           display: 'flex', alignItems: 'center', gap: 6,

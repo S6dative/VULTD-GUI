@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react'
 import { bridge } from '../bridge/vusd'
 
 const AppContext = createContext(null)
@@ -18,7 +18,7 @@ export function AppProvider({ children }) {
   const [vusdBalance, setVusdBalance] = useState(0)
   const [wallet, setWallet] = useState(() => {
     const stored = localStorage.getItem('vultd-wallet')
-    if (stored) try { return JSON.parse(stored) } catch {}
+    if (stored) try { return JSON.parse(stored) } catch { /* ignore */ }
     return null
   })
 
@@ -142,7 +142,8 @@ export function AppProvider({ children }) {
 
   const faucetClaims = parseInt(localStorage.getItem('vultd-faucet-claims') || '0')
   const lastClaim = parseInt(localStorage.getItem('vultd-faucet-last') || '0')
-  const canClaim = network === 'signet' && (Date.now() - lastClaim > 86400000 || faucetClaims < 10)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const canClaim = useMemo(() => network === 'signet' && (lastClaim === 0 || faucetClaims < 10 || (Date.now() - lastClaim > 86400000)), [network, lastClaim, faucetClaims])
 
   return (
     <AppContext.Provider value={{
@@ -164,4 +165,5 @@ export function AppProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useApp = () => useContext(AppContext)

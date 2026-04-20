@@ -6,7 +6,6 @@ import { useApp } from '../contexts/AppContext'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const fmtSats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
-const healthColor = h => h >= 200 ? 'var(--success)' : h >= 150 ? 'var(--warning)' : 'var(--danger)'
 
 const VAULT_TYPE_LABEL = { Classic: 'Classic', QuantumStd: 'Quantum Std', QuantumUltra: 'Quantum Ultra' }
 
@@ -53,7 +52,7 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
       const lastLine = out.split('\n').filter(l => l.trim()).pop() || ''
       if (lastLine.toLowerCase().includes('error') || lastLine.toLowerCase().includes('failed')) throw new Error(lastLine)
       // Extract CR from output if available
-      const crMatch = out.match(/New CR[:\s]+([\.\d]+)%/)
+      const crMatch = out.match(/New CR[:\s]+([\d.]+)%/)
       const newCRFromOutput = crMatch ? parseFloat(crMatch[1]).toFixed(2) : null
       setMsg({ ok: true, text: '✅ Collateral added! New CR: ' + (newCRFromOutput || newCR) + '%' })
       setSats('')
@@ -161,7 +160,7 @@ function CloseVaultPanel({ vaultId, debt }) {
 function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice }) {
   const [expanded, setExpanded] = uS(false)
   const [showPubkey, setShowPubkey] = uS(false)
-  const [copied, setCopied] = uS(false)
+  const [_copied, setCopied] = uS(false)
   const [exportCopied, setExportCopied] = uS(false)
   const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 

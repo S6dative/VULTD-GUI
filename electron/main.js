@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, session } = require("electron")
-const { spawn, execFileSync } = require("child_process")
+const { spawn } = require("child_process")
 const path = require("path")
 const fs = require("fs")
 const os = require("os")
@@ -128,11 +128,11 @@ ipcMain.handle("set-network", (_, network) => {
 })
 
 ipcMain.handle("btc-balance", async () => {
-  try { return await btcRpc("getbalance", [], "vusd") } catch(e) { return 0 }
+  try { return await btcRpc("getbalance", [], "vusd") } catch { return 0 }
 })
 
 ipcMain.handle("btc-new-address", async () => {
-  try { return await btcRpc("getnewaddress", ["one-time"], "vusd") } catch(e) { return "" }
+  try { return await btcRpc("getnewaddress", ["one-time"], "vusd") } catch { return "" }
 })
 
 ipcMain.handle("btc-address", async () => {
@@ -142,7 +142,7 @@ ipcMain.handle("btc-address", async () => {
     const existing = Object.keys(addrs || {}).find(a => a.startsWith('tb1') || a.startsWith('bc1'))
     if (existing) return existing
     return await btcRpc("getnewaddress", [], "vusd")
-  } catch(e) { return "" }
+  } catch { return "" }
 })
 
 ipcMain.handle("bitcoin-cli", async (_, args) => {
@@ -159,7 +159,7 @@ ipcMain.handle("read-vaults", async () => {
         if (typeof rv === "object" && rv !== null && !rv.output) {
           vaultData = rv
         } else if (rv && rv.output) {
-          try { vaultData = JSON.parse(rv.output) } catch {}
+          try { vaultData = JSON.parse(rv.output) } catch { /* ignore parse error */ }
         }
       } catch(fe) { console.error("read-vaults cat-vaults:", fe.message) }
     } else {
@@ -215,7 +215,7 @@ ipcMain.handle("vusd-balance-parsed", async () => {
     const args = IS_WIN ? ["-e", VUSD_WSL, "balance"] : ["balance"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
     return parseVusd(stripAnsi(r.output || ""))
-  } catch(e) { return {} }
+  } catch { return {} }
 })
 
 ipcMain.handle("vusd-oracle-parsed", async () => {
@@ -224,7 +224,7 @@ ipcMain.handle("vusd-oracle-parsed", async () => {
     const args = IS_WIN ? ["-e", VUSD_WSL, "oracle"] : ["oracle"]
     const r = await run(bin, args, IS_WIN ? {} : VENV)
     return parseVusd(stripAnsi(r.output || ""))
-  } catch(e) { return {} }
+  } catch { return {} }
 })
 
 ipcMain.handle("node-info", async () => {
@@ -249,7 +249,7 @@ ipcMain.handle("list-transactions", async () => {
       time: tx.time,
       address: tx.address,
     }))
-  } catch(e) { return [] }
+  } catch { return [] }
 })
 
 ipcMain.handle("faucet", async (_, address) => {

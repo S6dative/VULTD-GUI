@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 
 const fmt  = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const sats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
-const ago  = ms => { const s=Math.floor((Date.now()-ms)/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return'about '+Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago' }
+const _ago  = ms => { const s=Math.floor((Date.now()-ms)/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return'about '+Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago' }
 
 function Tip({ text }) {
   return (
@@ -31,7 +31,7 @@ function CopyButton({ text, size = 13 }) {
 }
 
 export default function Dashboard() {
-  const { network, wallet, claimFaucet, canClaim, faucetClaims, btcPrice: ctxBtcPrice, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal, refreshBtcAddress } = useApp()
+  const { network, wallet, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal } = useApp()
   const navigate = useNavigate()
   const isSignet = network === 'signet'
   const [btcPrice, setBtcPrice] = useState(null)
@@ -137,10 +137,11 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchAll(network)
     const interval = setInterval(() => fetchAll(network), 30000)
     return () => clearInterval(interval)
-  }, [network])
+  }, [network]) // fetchAll is defined in this scope; wrapping in useCallback would cause dep cycle
 
   const vusdBalance = vusdBal || wallet?.vusdBalance || 0
   const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
