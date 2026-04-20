@@ -17,10 +17,23 @@ function Tip({ text }) {
   )
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+    return
+  }
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;left:-9999px;top:-9999px'
+  document.body.appendChild(el)
+  el.focus(); el.select(); el.setSelectionRange(0, 99999)
+  try { document.execCommand('copy') } finally { document.body.removeChild(el) }
+}
+
 function CopyButton({ text, size = 13 }) {
   const [copied, setCopied] = useState(false)
   const copy = () => {
-    navigator.clipboard?.writeText(text)
+    copyToClipboard(text)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
   return (
@@ -61,17 +74,14 @@ export default function Dashboard() {
   const fetchPrice = async () => {
     setPriceLoading(true)
     try {
-      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
+      const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
       const data = await res.json()
-      setBtcPrice(data.bitcoin.usd)
-      setCtxBtcPrice(data.bitcoin.usd)
-      setPriceChange(data.bitcoin.usd_24h_change?.toFixed(2))
+      const price = parseFloat(data.data.amount)
+      setBtcPrice(price)
+      setCtxBtcPrice(price)
+      setPriceChange(null)
     } catch {
-      try {
-        const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
-        const data = await res.json()
-        setBtcPrice(parseFloat(data.data.amount))
-      } catch { setBtcPrice(85000) }
+      setBtcPrice(85000)
     }
     setPriceLoading(false)
   }

@@ -5,12 +5,42 @@ import { useLocation } from 'react-router-dom'
 import { bridge } from '../bridge/vusd'
 import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw, Bitcoin, DollarSign, ChevronDown } from 'lucide-react'
 
+function fallbackCopy(text, onSuccess, onFail) {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;top:10px;left:10px;width:1px;height:1px;padding:0;border:none;outline:none;box-shadow:none;background:transparent;color:transparent;opacity:0.01;font-size:1px;z-index:-1'
+  document.body.appendChild(el)
+  el.focus(); el.select(); el.setSelectionRange(0, el.value.length)
+  try {
+    const ok = document.execCommand('copy')
+    document.body.removeChild(el)
+    if (ok) { onSuccess && onSuccess() } else { onFail && onFail() }
+  } catch (_) {
+    document.body.removeChild(el)
+    onFail && onFail()
+  }
+}
+
+function copyToClipboard(text, onSuccess, onFail) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess, onFail))
+    return
+  }
+  fallbackCopy(text, onSuccess, onFail)
+}
+
 const fmt  = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
 const sats = n => n >= 100000000 ? (n/100000000).toFixed(8)+' BTC' : n.toLocaleString()+' sats'
 
 function CopyBtn({ text }) {
   const [copied, setCopied] = useState(false)
-  const copy = () => { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),2000) }
+  const copy = () => {
+    copyToClipboard(
+      text,
+      () => { setCopied(true); setTimeout(() => setCopied(false), 2000) },
+      () => { setCopied(false) }
+    )
+  }
   return (
     <button onClick={copy} className="btn btn-secondary btn-sm">
       {copied ? <><Check size={12} style={{color:'var(--success)'}} /> Copied</> : <><Copy size={12}/> Copy</>}
@@ -289,8 +319,26 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
             <div style={{ fontFamily:'Geist Mono, monospace', fontSize:12, color:'var(--fg)', wordBreak:'break-all', lineHeight:1.8, marginBottom:12 }}>
               {displayAddr}
             </div>
-            <div style={{ display:'flex', gap:8 }}>
+            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
               <CopyBtn text={displayAddr} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'var(--muted-fg)', display:'block', marginBottom:4 }}>
+                Click to select — then Ctrl+C:
+              </label>
+              <textarea
+                readOnly
+                value={displayAddr}
+                onClick={e => { e.target.select(); e.target.setSelectionRange(0, 99999) }}
+                rows={2}
+                style={{
+                  width:'100%', padding:'8px 10px', borderRadius:6,
+                  background:'var(--card2)', border:'1px solid var(--border)',
+                  color:'var(--fg)', fontFamily:'Geist Mono, monospace',
+                  fontSize:11, resize:'none', cursor:'pointer', lineHeight:1.6,
+                  boxSizing:'border-box',
+                }}
+              />
             </div>
           </div>
         ) : (

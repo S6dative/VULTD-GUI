@@ -4,5 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: { global: 'globalThis' },
+  resolve: { alias: { buffer: 'buffer' } },
   base: './',
+  server: {
+    host: true,
+    headers: {
+      'Permissions-Policy': 'clipboard-write=(self)',
+    },
+  },
 })
