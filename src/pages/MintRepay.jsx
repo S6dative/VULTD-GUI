@@ -33,6 +33,7 @@ export default function MintRepay() {
     bridge.readWallet().then(w => {
       if (w && typeof w.balance === 'number') setVusdWalletBal(w.balance)
     }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const vault = openVaults.find(v=>v.id===vaultId)
   const collUsd = vault ? (vault.collateralSats / 100000000) * btcPriceVal : 0

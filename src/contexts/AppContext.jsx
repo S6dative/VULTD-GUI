@@ -142,7 +142,7 @@ export function AppProvider({ children }) {
 
   const faucetClaims = parseInt(localStorage.getItem('vultd-faucet-claims') || '0')
   const lastClaim = parseInt(localStorage.getItem('vultd-faucet-last') || '0')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/purity
   const canClaim = useMemo(() => network === 'signet' && (lastClaim === 0 || faucetClaims < 10 || (Date.now() - lastClaim > 86400000)), [network, lastClaim, faucetClaims])
 
   return (

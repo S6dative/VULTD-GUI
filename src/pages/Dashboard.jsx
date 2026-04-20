@@ -137,10 +137,10 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchAll(network)
     const interval = setInterval(() => fetchAll(network), 30000)
     return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [network]) // fetchAll is defined in this scope; wrapping in useCallback would cause dep cycle
 
   const vusdBalance = vusdBal || wallet?.vusdBalance || 0

@@ -204,6 +204,7 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
     return w.vusdAddress || wallet?.vusdAddress || ''
   })
   const [genning, setGenning] = useState(false)
+  const [genningQuantum, setGenningQuantum] = useState(false)
   const btcAddr = btcAddrLocal || wallet?.address || ''
   const [oneTimeAddr, setOneTimeAddr] = useState('')
   const [genningOneTime, setGenningOneTime] = useState(false)
@@ -218,10 +219,10 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
   const isBtc = asset === 'btc'
   const displayAddr = isBtc ? btcAddr : vusdAddr
 
-  const generateVusd = async () => {
-    setGenning(true)
+  const generateVusd = async (quantum = false) => {
+    quantum ? setGenningQuantum(true) : setGenning(true)
     try {
-      const res = await bridge.generateAddress()
+      const res = await bridge.generateAddress(quantum)
       const out = typeof res === 'string' ? res : (res?.output || res?.address || '')
       const addr = out.trim().split('\n').pop() || ''
       setVusdAddr(addr)
@@ -229,7 +230,7 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
       w.vusdAddress = addr
       localStorage.setItem('vultd-wallet', JSON.stringify(w))
     } catch (e) { console.error('generate-address', e) }
-    setGenning(false)
+    quantum ? setGenningQuantum(false) : setGenning(false)
   }
 
   return (
@@ -265,10 +266,16 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
             {isBtc ? 'Your Bitcoin Address' : 'Your VUSD Stealth Address'}
           </span>
           {!isBtc && (
-            <button onClick={generateVusd} disabled={genning} className="btn btn-ghost btn-sm">
-              <RefreshCw size={11} className={genning ? 'spin' : ''} />
-              {genning ? 'Generating...' : 'Generate new'}
-            </button>
+            <div style={{ display:'flex', gap:6 }}>
+              <button onClick={() => generateVusd(false)} disabled={genning || genningQuantum} className="btn btn-ghost btn-sm">
+                <RefreshCw size={11} className={genning ? 'spin' : ''} />
+                {genning ? 'Generating...' : 'Generate'}
+              </button>
+              <button onClick={() => generateVusd(true)} disabled={genning || genningQuantum} className="btn btn-ghost btn-sm" title="Post-quantum Kyber-768 address">
+                <RefreshCw size={11} className={genningQuantum ? 'spin' : ''} />
+                {genningQuantum ? 'Generating...' : '\u269B Quantum'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -292,10 +299,16 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
               {isBtc ? 'No Bitcoin address generated yet' : 'No VUSD address yet'}
             </div>
             {!isBtc && (
-              <button onClick={generateVusd} disabled={genning} className="btn btn-secondary">
-                <RefreshCw size={13} className={genning ? 'spin' : ''} />
-                {genning ? 'Generating...' : 'Generate VUSD Address'}
-              </button>
+              <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
+                <button onClick={() => generateVusd(false)} disabled={genning || genningQuantum} className="btn btn-secondary">
+                  <RefreshCw size={13} className={genning ? 'spin' : ''} />
+                  {genning ? 'Generating...' : 'Generate My Address'}
+                </button>
+                <button onClick={() => generateVusd(true)} disabled={genning || genningQuantum} className="btn btn-secondary" title="Post-quantum Kyber-768 address">
+                  <RefreshCw size={13} className={genningQuantum ? 'spin' : ''} />
+                  {genningQuantum ? 'Generating...' : '\u269B Quantum Address'}
+                </button>
+              </div>
             )}
           </div>
         )}

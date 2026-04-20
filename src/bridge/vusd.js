@@ -13,7 +13,18 @@ const MOCKS = {
   repay:          () => ({ success: false, error: 'Not connected to node' }),
   closeVault:     () => ({ success: false, error: 'Not connected to node' }),
   health:         () => ({ state: null, debt: 0, health: 0, collateral: 0 }),
-  generateAddress:() => ({ address: '' }),
+  generateAddress: (quantum = false) => {
+    const mockSpend = '620feb5d76791136e6997cec721eecc56e8e4aa6f3ebaafef09d4dc5c2e7ce09'
+    const mockView  = 'ba53841ee14514d22f60fe09838a174304b3375570f8802d7ef7402cac8cc312'
+    const mockNode  = '033aa8a9931d43f825ca624beb6cfd5630cd324d94709ea1aa03679a1534044b87'
+    const mockChan  = '327343303290585089'
+    const mockRelay = 'http://127.0.0.1:8088'
+    if (quantum) {
+      const mockKyber = Array(2368).fill(0).map(() => Math.floor(Math.random()*16).toString(16)).join('')
+      return { address: `vusd:${mockSpend}:${mockView}:${mockKyber}:${mockNode}:${mockChan}:${mockRelay}` }
+    }
+    return { address: `vusd:${mockSpend}:${mockView}:${mockNode}:${mockChan}:${mockRelay}` }
+  },
   listVaults:     () => ([]),
   keystoreStatus: () => ({ version: null, hasQuantumKeys: false }),
   networkStatus:  () => ({ bitcoindConnected: false, lndConnected: false, blockHeight: null, syncProgress: null }),
