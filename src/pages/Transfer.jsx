@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useApp } from '../contexts/AppContext'
 import { useLocation } from 'react-router-dom'
-import { bridge } from '../bridge/vusd'
+import { bridge, vusd } from '../bridge/vusd'
 import { Shield, Copy, Check, ArrowUpRight, ArrowDownLeft, RefreshCw, Bitcoin, DollarSign, ChevronDown } from 'lucide-react'
 
 function fallbackCopy(text, onSuccess, onFail) {
@@ -106,7 +106,7 @@ function AssetSelector({ value, onChange, btcSats, vusdBalance, btcPriceVal, net
 }
 
 // ── Send Panel ────────────────────────────────────────────────────────────────
-function SendPanel({ wallet, network, btcPrice, defaultAsset, ctxBtcSats }) {
+function SendPanel({ wallet, network, btcPrice, defaultAsset, ctxBtcSats, vusdBalance: vusdProp }) {
   const isSignet = network === 'signet'
   const [asset, setAsset] = useState(defaultAsset || 'btc')
   const [to, setTo] = useState('')
@@ -114,7 +114,7 @@ function SendPanel({ wallet, network, btcPrice, defaultAsset, ctxBtcSats }) {
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState(null)
   const btcSats = ctxBtcSats || wallet?.btcSats || 0
-  const vusdBalance = wallet?.vusdBalance || 0
+  const vusdBalance = vusdProp !== undefined ? vusdProp : (wallet?.vusdBalance || 0)
   const sendValue = parseFloat(amount) || 0
   const isBtc = asset === 'btc'
 
@@ -406,54 +406,35 @@ function ReceivePanel({ wallet, defaultAsset, network, btcPrice }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 function TransferHistory() {
-  const [txs, setTxs] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    bridge.listTransactions().then(data => {
-      if (Array.isArray(data)) setTxs(data)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return <div style={{ padding:'16px 20px', textAlign:'center', color:'var(--muted-fg)', fontSize:13 }}>Loading...</div>
-  if (txs.length === 0) return (
-    <div style={{ padding:'16px 20px', textAlign:'center', color:'var(--muted-fg)' }}>
-      <div style={{ fontSize:13, marginBottom:4 }}>No transfers yet</div>
-      <div style={{ fontSize:12 }}>Bitcoin and VUSD transfers will appear here</div>
-    </div>
-  )
   return (
-    <div style={{ display:'flex', flexDirection:'column' }}>
-      {txs.map((tx, i) => (
-        <div key={tx.txid+tx.category+i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom: i < txs.length-1 ? '1px solid var(--border)' : 'none' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ width:32, height:32, borderRadius:'50%', background: tx.category==='send'?'var(--danger-dim)':'var(--success-dim)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              {tx.category==='send' ? <ArrowUpRight size={14} style={{color:'var(--danger)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
-            </div>
-            <div>
-              <div style={{ fontWeight:500, fontSize:13 }}>{tx.category==='send' ? 'Sent sBTC' : 'Received sBTC'}</div>
-              <div style={{ fontSize:11, color:'var(--muted-fg)', fontFamily:'Geist Mono, monospace' }}>
-                {tx.address?.slice(0,10)}...{tx.address?.slice(-6)} · {tx.confirmations} conf
-              </div>
-            </div>
-          </div>
-          <div style={{ textAlign:'right' }}>
-            <div style={{ fontFamily:'Geist Mono, monospace', fontWeight:600, fontSize:13, color: tx.category==='send'?'var(--danger)':'var(--success)' }}>
-              {tx.category==='send'?'':'+'}{ Math.abs(tx.amount).toFixed(8) } BTC
-            </div>
-            <div style={{ fontSize:11, color: tx.confirmations === 0 ? 'var(--warning)' : 'var(--muted-fg)' }}>{tx.confirmations === 0 ? '⏳ Pending' : tx.confirmations < 3 ? tx.confirmations+' conf' : new Date(tx.time*1000).toLocaleDateString()}</div>
-          </div>
-        </div>
-      ))}
+    <div style={{ padding:'20px', textAlign:'center', color:'var(--muted-fg)' }}>
+      <div style={{ fontSize:13, marginBottom:4 }}>No VUSD transfers yet</div>
+      <div style={{ fontSize:12 }}>Send or receive VUSD to see your history here</div>
     </div>
   )
 }
 
 export default function Transfer() {
-  const { wallet, network, btcPrice, btcSats: ctxBtcSats } = useApp()
+  const { wallet, network, btcPrice: ctxBtcPrice, btcSats: ctxBtcSats, vusdBalance: ctxVusdBal } = useApp()
   const location = useLocation()
   const defaultAsset = new URLSearchParams(location.search).get('asset') || 'btc'
   const [tab, setTab] = useState('send')
+
+  const [vusdBalance, setVusdBalance] = useState(ctxVusdBal || 0)
+  const [btcSats, setBtcSats]         = useState(ctxBtcSats || wallet?.btcSats || 0)
+  const [btcPrice, setBtcPrice]       = useState(ctxBtcPrice || 0)
+
+  useEffect(() => {
+    vusd.balance().then(d => {
+      setVusdBalance(d?.vusdBalance ?? 0)
+      if ((d?.btcSats ?? -1) >= 0) setBtcSats(d.btcSats)
+      if ((d?.btcPrice ?? 0) > 0) setBtcPrice(d.btcPrice)
+    }).catch(() => {})
+  }, [])
+
+  const resolvedVusd     = vusdBalance || ctxVusdBal || 0
+  const resolvedBtcSats  = btcSats || ctxBtcSats || 0
+  const resolvedBtcPrice = btcPrice || ctxBtcPrice || 0
 
   const tabs = [
     { id:'send',    label:'Send',    icon:ArrowUpRight },
@@ -471,8 +452,8 @@ export default function Transfer() {
 
       <div className="card">
         {tab === 'send'
-          ? <SendPanel wallet={wallet} network={network} btcPrice={btcPrice} defaultAsset={defaultAsset} ctxBtcSats={ctxBtcSats} />
-          : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} network={network} btcPrice={btcPrice} />}
+          ? <SendPanel wallet={wallet} network={network} btcPrice={resolvedBtcPrice} defaultAsset={defaultAsset} ctxBtcSats={resolvedBtcSats} vusdBalance={resolvedVusd} />
+          : <ReceivePanel wallet={wallet} defaultAsset={defaultAsset} network={network} btcPrice={resolvedBtcPrice} />}
       </div>
 
       {/* Transfer history */}

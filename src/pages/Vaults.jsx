@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Lock, Unlock, AlertTriangle, Info, ChevronDown, ChevronUp, Eye, EyeOff, Copy, Shield, Download } from 'lucide-react'
 import { useState as uS } from 'react'
-import { bridge, getVaultType, truncateVaultId, mainnetConfirm } from '../bridge/vusd'
+import { bridge, vusd, getVaultType, truncateVaultId, mainnetConfirm } from '../bridge/vusd'
 import { useApp } from '../contexts/AppContext'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
@@ -58,25 +58,8 @@ function AddCollateralPanel({ vaultId, isSignet, v, btcPrice }) {
       setSats('')
       setConfirmed(false)
       // Re-fetch vault data to update collateral display
-      bridge.readVaults().then(data => {
-        if (!data) return
-        const entries = Object.entries(data)
-        const updated = entries.map(([id, v]) => ({
-          id: String(id),
-          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-          collateralSats: v.locked_btc || 0,
-          debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
-          openedAt: v.open_timestamp || 0,
-          lastUpdated: v.last_updated || 0,
-          openFeeSats: v.open_fee_paid_sats || 0,
-          ownerPubkey: v.owner_pubkey || '',
-          ownerPubkeyFull: v.owner_pubkey_full || '',
-          taprootTxid: v.taproot_txid || '',
-          liq_price: v.liq_price || null,
-          health_cr: v.health_cr || null,
-        }))
-        // Trigger parent re-render by dispatching a custom event
-        window.dispatchEvent(new CustomEvent('vaults-updated', { detail: updated }))
+      vusd.listVaults().then(arr => {
+        window.dispatchEvent(new CustomEvent('vaults-updated', { detail: arr }))
       }).catch(() => {})
       // Refresh vault list
       setTimeout(() => window.location.reload(), 1500)
@@ -241,7 +224,7 @@ function VaultCard({ v, collUsd, health, stateColor, stateBg, isSignet, btcPrice
             { label:'Last Updated', value: v.lastUpdated ? new Date(v.lastUpdated*1000).toLocaleString() : '--' },
             { label:'Open Fee Paid', value: v.openFeeSats ? v.openFeeSats.toLocaleString()+' sats' : '--' },
             { label:'Liq. Price', value: liqPrice ? '$'+liqPrice.toLocaleString() : (v.liq_price ? '$'+v.liq_price.toLocaleString() : '--'), color:'var(--danger)' },
-            { label:'Collateral Ratio', value: health ? health+'%' : (v.health_cr ? v.health_cr+'%' : '--'), color: health ? (health>=200?'var(--success)':health>=150?'var(--warning)':'var(--danger)') : undefined },
+            { label:'Collateral Ratio', value: health ? health+'%' : (v.health ? v.health+'%' : '--'), color: health ? (health>=200?'var(--success)':health>=150?'var(--warning)':'var(--danger)') : undefined },
             { label:'Taproot TXID', value: v.taprootTxid || '--', mono:true },
           ].map(row => (
             <div key={row.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12 }}>
@@ -305,6 +288,11 @@ export default function Vaults() {
   const [vaults, setVaults] = useState([])
   const [loadingVaults, setLoadingVaults] = useState(true)
   const [infoOpen, setInfoOpen] = useState(null)
+  const [clearedVaults, setClearedVaults] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vultd-cleared-vaults') || '[]') } catch { return [] }
+  })
+  const [importId, setImportId] = useState('')
+  const [importResult, setImportResult] = useState(null)
   const btcPrice = liveBtcPrice || 85000
   const walletSats = wallet?.btcSats || 0
 
@@ -321,23 +309,42 @@ export default function Vaults() {
       const balNum = typeof bal === 'number' ? bal : parseFloat(bal)
       if (!isNaN(balNum) && balNum >= 0) setRealSats(Math.round(balNum * 1e8))
     }).catch(() => {})
-    bridge.readVaults().then(data => {
-      if (!data) return
-      const entries = Object.entries(data)
-      setVaults(entries.map(([id, v]) => ({
-        id: String(id || ''),
-        state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-        collateralSats: v.locked_btc || 0,
-        debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
-        openedAt: v.open_timestamp || 0,
-        lastUpdated: v.last_updated || 0,
-        openFeeSats: v.open_fee_paid_sats || 0,
-        ownerPubkey: v.owner_pubkey || '',
-        ownerPubkeyFull: v.owner_pubkey_full || '',
-        taprootTxid: v.taproot_txid || '',
-      })))
+    vusd.listVaults().then(arr => {
+      setVaults(arr)
     }).catch(() => {}).finally(() => setLoadingVaults(false))
   }, [])
+
+  const openVaultsList  = vaults.filter(v => v.state === 'Open' || v.state === 'Active')
+  const historyVaults   = vaults.filter(v =>
+    v.state !== 'Open' && v.state !== 'Active' && !clearedVaults.includes(v.id)
+  )
+
+  const clearHistory = () => {
+    const ids = historyVaults.map(v => v.id)
+    const next = [...new Set([...clearedVaults, ...ids])]
+    setClearedVaults(next)
+    localStorage.setItem('vultd-cleared-vaults', JSON.stringify(next))
+  }
+
+  const handleImport = async () => {
+    const id = importId.trim()
+    if (!id) return
+    setImportResult(null)
+    try {
+      const all = await vusd.listVaults()
+      const found = all.find(v => v.id === id)
+      if (found) {
+        setImportResult({ ok: true, msg: 'Vault found — showing in My Vaults' })
+        setVaults(all)
+        setTab(found.state === 'Open' || found.state === 'Active' ? 'open' : 'history')
+        setImportId('')
+      } else {
+        setImportResult({ ok: false, msg: 'Vault not found in local state (~/.vusd/vaults.json)' })
+      }
+    } catch {
+      setImportResult({ ok: false, msg: 'Error reading vault state' })
+    }
+  }
 
   const btcVal = inputMode === 'btc'
     ? (parseFloat(btcAmount) || 0)
@@ -365,22 +372,8 @@ export default function Vaults() {
       setOpenSuccess(true)
       setBtcAmount('')
       setInputMode('btc')
-      const data = await bridge.readVaults()
-      if (data) {
-        const entries = Object.entries(data)
-        setVaults(entries.map(([id, v]) => ({
-          id: String(id || ''),
-          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-          collateralSats: v.locked_btc || 0,
-          debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
-          openedAt: v.open_timestamp || 0,
-          lastUpdated: v.last_updated || 0,
-          openFeeSats: v.open_fee_paid_sats || 0,
-          ownerPubkey: v.owner_pubkey || '',
-          ownerPubkeyFull: v.owner_pubkey_full || '',
-          taprootTxid: v.taproot_txid || '',
-        })))
-      }
+      const arr = await vusd.listVaults()
+      if (Array.isArray(arr)) setVaults(arr)
     } catch(e) {
       setOpenError(e.message || 'Failed to open vault')
     }
@@ -406,7 +399,7 @@ export default function Vaults() {
       </div>
 
       <div style={{ display:'inline-flex', background:'var(--card2)', border:'1px solid var(--border)', borderRadius:8, padding:3 }}>
-        {[['create','Create Vault'],['manage','My Vaults']].map(([id,label]) => (
+        {[['create','Create Vault'],['open','My Vaults'],['history','History']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)} style={{
             padding:'6px 18px', borderRadius:6, border:'none', cursor:'pointer',
             fontSize:13, fontWeight:tab===id?500:400,
@@ -601,23 +594,23 @@ export default function Vaults() {
         </div>
       )}
 
-      {tab === 'manage' && (
+      {tab === 'open' && (
         <div style={{ maxWidth:800, display:'flex', flexDirection:'column', gap:16 }}>
           {loadingVaults ? (
             <div className='card' style={{ textAlign:'center', padding:40, color:'var(--muted-fg)' }}>Loading vaults...</div>
-          ) : vaults.length === 0 ? (
+          ) : openVaultsList.length === 0 ? (
             <div className='card' style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:48, color:'var(--muted-fg)', textAlign:'center' }}>
               <Lock size={36} style={{ marginBottom:12, opacity:0.2 }} />
-              <div style={{ fontSize:14, marginBottom:4 }}>No vaults yet</div>
-              <div style={{ fontSize:12, marginBottom:16 }}>Create your first vault to start minting VUSD</div>
+              <div style={{ fontSize:14, marginBottom:4 }}>No open vaults</div>
+              <div style={{ fontSize:12, marginBottom:16 }}>Open a vault to mint VUSD against your BTC collateral</div>
               <button onClick={() => setTab('create')} className='btn btn-primary'><Plus size={13}/> Create Vault</button>
             </div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {vaults.map(v => {
+              {openVaultsList.map(v => {
                 const collUsd = (v.collateralSats/1e8)*btcPrice
-                const stateColor = v.state==='Open' || v.state==='Active' ? 'var(--success)' : v.state==='Repaid' ? 'var(--warning)' : 'var(--muted-fg)'
-                const stateBg = v.state==='Open' || v.state==='Active' ? 'var(--success-dim)' : v.state==='Repaid' ? 'var(--warning-dim)' : 'var(--card3)'
+                const stateColor = 'var(--success)'
+                const stateBg = 'var(--success-dim)'
                 const health = v.collateralSats && v.debt > 0 ? Math.round((v.collateralSats/1e8*btcPrice)/v.debt*100) : null
                 return (
                   <VaultCard key={v.id} v={v} collUsd={collUsd} health={health} stateColor={stateColor} stateBg={stateBg} isSignet={isSignet} btcPrice={btcPrice} />
@@ -632,10 +625,49 @@ export default function Vaults() {
               Vault state is stored in <code style={{fontFamily:'Geist Mono,monospace',background:'var(--card2)',padding:'1px 4px',borderRadius:3}}>~/.vusd/vaults.json</code>. Back this up to restore on a new device. Your vault keys derive from your owner seed — keep it safe.
             </div>
             <div style={{ display:'flex', gap:8 }}>
-              <input placeholder='Paste vault ID to re-track (vault:...)' className='input mono' style={{ flex:1, fontSize:11 }} />
-              <button className='btn btn-secondary' style={{ whiteSpace:'nowrap', fontSize:12 }}>Import</button>
+              <input value={importId} onChange={e => { setImportId(e.target.value); setImportResult(null) }}
+                placeholder='Paste vault ID to re-track (vault:...)' className='input mono' style={{ flex:1, fontSize:11 }} />
+              <button onClick={handleImport} className='btn btn-secondary' style={{ whiteSpace:'nowrap', fontSize:12 }}>Import</button>
             </div>
+            {importResult && (
+              <div style={{ marginTop:8, fontSize:12, color: importResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+                {importResult.msg}
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {tab === 'history' && (
+        <div style={{ maxWidth:800, display:'flex', flexDirection:'column', gap:16 }}>
+          {loadingVaults ? (
+            <div className='card' style={{ textAlign:'center', padding:40, color:'var(--muted-fg)' }}>Loading...</div>
+          ) : historyVaults.length === 0 ? (
+            <div className='card' style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:48, color:'var(--muted-fg)', textAlign:'center' }}>
+              <Unlock size={36} style={{ marginBottom:12, opacity:0.2 }} />
+              <div style={{ fontSize:14, marginBottom:4 }}>No vault history</div>
+              <div style={{ fontSize:12 }}>Closed and repaid vaults will appear here</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {historyVaults.map(v => {
+                  const collUsd = (v.collateralSats/1e8)*btcPrice
+                  const stateColor = v.state === 'Repaid' ? 'var(--warning)' : 'var(--muted-fg)'
+                  const stateBg   = v.state === 'Repaid' ? 'var(--warning-dim)' : 'var(--card3)'
+                  const health = v.collateralSats && v.debt > 0 ? Math.round((v.collateralSats/1e8*btcPrice)/v.debt*100) : null
+                  return (
+                    <VaultCard key={v.id} v={v} collUsd={collUsd} health={health} stateColor={stateColor} stateBg={stateBg} isSignet={isSignet} btcPrice={btcPrice} />
+                  )
+                })}
+              </div>
+              <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                <button onClick={clearHistory} className='btn btn-secondary' style={{ fontSize:12, color:'var(--danger)', borderColor:'rgba(239,68,68,0.3)' }}>
+                  Clear History
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

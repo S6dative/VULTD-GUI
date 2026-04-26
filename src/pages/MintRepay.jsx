@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { bridge } from '../bridge/vusd'
+import { bridge, vusd } from '../bridge/vusd'
 import { Coins, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react'
 import { formatUsd, truncateVaultId, healthColor } from '../data'
 import { useApp } from '../contexts/AppContext'
+import { useNavigate } from 'react-router-dom'
 
 export default function MintRepay() {
   const { btcPrice: liveBtcPrice } = useApp()
+  const navigate = useNavigate()
   const btcPriceVal = liveBtcPrice || 85000
   const [vaultId, setVaultId] = useState('')
   const [tab, setTab] = useState('mint')
@@ -16,20 +18,21 @@ export default function MintRepay() {
 
   const [openVaults, setOpenVaults] = useState([])
 
-  useEffect(() => {
-    bridge.readVaults().then(data => {
-      const entries = Array.isArray(data) ? data : Object.entries(data || {})
-      const normalized = entries.map(([id, v]) => ({
-        id: String(id || ''),
-        state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-        collateralSats: v.locked_btc || 0,
-        debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
-        health: v.locked_btc && v.debt_vusd > 0
-          ? Math.round((v.locked_btc / 100000000 * btcPriceVal) / ((v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : v.debt_vusd)) * 100)
+  const loadVaults = () => vusd.listVaults().then(arr => {
+    const open = arr
+      .filter(v => v.state === 'Open' || v.state === 'Active')
+      .map(v => ({
+        ...v,
+        health: v.collateralSats && v.debt > 0
+          ? Math.round((v.collateralSats / 1e8 * btcPriceVal) / v.debt * 100)
           : 999,
       }))
-      setOpenVaults(normalized.filter(v => v.state === 'Open' || v.state === 'Active'))
-    }).catch(() => {})
+    setOpenVaults(open)
+    if (open.length === 1) setVaultId(open[0].id)
+  }).catch(() => {})
+
+  useEffect(() => {
+    loadVaults()
     bridge.readWallet().then(w => {
       if (w && typeof w.balance === 'number') setVusdWalletBal(w.balance)
     }).catch(() => {})
@@ -59,19 +62,7 @@ export default function MintRepay() {
       setMsg({ ok: true, text: tab==='mint' ? 'Minted '+formatUsd(amtNum)+' VUSD' : 'Repaid '+formatUsd(amtNum)+' VUSD' })
       setAmount('')
       // Refresh vault and VUSD balance after operation
-      bridge.readVaults().then(data => {
-        const entries = Array.isArray(data) ? data : Object.entries(data || {})
-        const normalized = entries.map(([id, v]) => ({
-          id: String(id || ''),
-          state: v.state === 'Active' ? 'Open' : (v.state || 'Unknown'),
-          collateralSats: v.locked_btc || 0,
-          debt: (v.debt_vusd || 0) > 1e15 ? (v.debt_vusd / 1e18) : (v.debt_vusd || 0),
-          health: v.locked_btc && v.debt_vusd > 0
-            ? Math.round((v.locked_btc / 100000000 * btcPriceVal) / ((v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : v.debt_vusd)) * 100)
-            : 999,
-        }))
-        setOpenVaults(normalized.filter(v => v.state === 'Open' || v.state === 'Active'))
-      }).catch(() => {})
+      loadVaults()
       bridge.readWallet().then(w => {
         if (w && typeof w.balance === 'number') setVusdWalletBal(w.balance)
       }).catch(() => {})
@@ -88,17 +79,29 @@ export default function MintRepay() {
         <p style={{color:'#737373',fontSize:14}}>sBTC · Mint VUSD against your sBTC collateral or repay your debt</p>
       </div>
 
-      {/* Vault selector */}
-      <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
-        <label style={{fontSize:12,color:'#737373',display:'block',marginBottom:8}}>Select Vault</label>
-        <select value={vaultId} onChange={e=>setVaultId(e.target.value)}
-          style={{width:'100%',padding:'10px 12px',borderRadius:8,background:'#111',border:'1px solid #262626',color:vaultId?'#fafafa':'#737373',outline:'none',cursor:'pointer'}}>
-          <option value="">Choose a vault...</option>
-          {openVaults.map(v=>(
-            <option key={v.id} value={v.id}>{truncateVaultId(v.id)} — {formatUsd(v.debt)} debt</option>
-          ))}
-        </select>
-      </div>
+      {/* Vault selector — or empty state */}
+      {openVaults.length === 0 ? (
+        <div className="card" style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'32px 20px', textAlign:'center', gap:12 }}>
+          <div style={{ fontSize:14, color:'var(--fg)', fontWeight:500 }}>No open vaults</div>
+          <div style={{ fontSize:13, color:'var(--muted-fg)', lineHeight:1.5 }}>
+            You need an open vault to mint VUSD.<br/>Open a vault with BTC collateral to get started.
+          </div>
+          <button onClick={() => navigate('/vaults')} className="btn btn-primary" style={{ fontSize:13, marginTop:4 }}>
+            Open a New Vault
+          </button>
+        </div>
+      ) : (
+        <div style={{background:'#1a1a1a',border:'1px solid #262626',borderRadius:12,padding:20}}>
+          <label style={{fontSize:12,color:'#737373',display:'block',marginBottom:8}}>Select Vault</label>
+          <select value={vaultId} onChange={e=>setVaultId(e.target.value)}
+            style={{width:'100%',padding:'10px 12px',borderRadius:8,background:'#111',border:'1px solid #262626',color:vaultId?'#fafafa':'#737373',outline:'none',cursor:'pointer'}}>
+            <option value="">Choose a vault...</option>
+            {openVaults.map(v=>(
+              <option key={v.id} value={v.id}>{truncateVaultId(v.id)} — {formatUsd(v.debt)} debt</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {vault && (
         <>

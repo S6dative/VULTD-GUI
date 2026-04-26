@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Bitcoin, DollarSign, TrendingUp, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight, ArrowUpRight, ArrowDownLeft, AlertTriangle } from 'lucide-react'
+import { Bitcoin, DollarSign, RefreshCw, Lock, HelpCircle, Copy, Check, ChevronRight, ArrowDownLeft, AlertTriangle } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
-import { bridge } from '../bridge/vusd'
+import { bridge, vusd } from '../bridge/vusd'
 import { useNavigate } from 'react-router-dom'
 
 const fmt  = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n)
@@ -45,19 +45,21 @@ function CopyButton({ text, size = 13 }) {
 
 export default function Dashboard() {
   const { network, wallet, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal } = useApp()
-  const navigate = useNavigate()
-  const isSignet = network === 'signet'
-  const [btcPrice, setBtcPrice] = useState(null)
-  const [priceChange, setPriceChange] = useState(null)
-  const [priceLoading, setPriceLoading] = useState(true)
-  const [btcSats, setBtcSats] = useState(ctxBtcSats || wallet?.btcSats || 0)
-  const [vusdBal, setVusdBal] = useState(ctxVusdBal || 0)
-  const [generating, setGenerating] = useState(false)
+  const navigate  = useNavigate()
+  const isSignet  = network === 'signet'
+
+  const [btcPrice,    setBtcPrice]    = useState(null)
+  const [priceLoading,setPriceLoading]= useState(true)
+  const [btcSats,     setBtcSats]     = useState(ctxBtcSats || wallet?.btcSats || 0)
+  const [vusdBal,     setVusdBal]     = useState(ctxVusdBal || 0)
+  const [generating,  setGenerating]  = useState(false)
+  const [vaults,      setVaults]      = useState([])
+  const [txHistory,   setTxHistory]   = useState([])
 
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const res = await bridge.btcAddress()
+      const res  = await bridge.btcAddress()
       const addr = typeof res === 'string' ? res.trim() : (res?.output || '').trim()
       if (addr) {
         const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
@@ -68,102 +70,105 @@ export default function Dashboard() {
     setGenerating(false)
   }
 
-  const [vaults, setVaults] = useState([])
-  const [txHistory, setTxHistory] = useState([])
-
-  const fetchPrice = async () => {
+  // Fetch BTC price — prefer CLI oracle, fall back to Coinbase (CORS-permissive endpoint)
+  const fetchBtcPrice = async (fromCli = false) => {
+    if (fromCli) return  // already fetched via vusd.balance() in fetchAll
     setPriceLoading(true)
     try {
-      const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
-      const data = await res.json()
+      const res   = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
+      const data  = await res.json()
       const price = parseFloat(data.data.amount)
-      setBtcPrice(price)
-      setCtxBtcPrice(price)
-      setPriceChange(null)
-    } catch {
-      setBtcPrice(85000)
-    }
+      if (!isNaN(price)) {
+        setBtcPrice(price)
+        setCtxBtcPrice(price)
+      }
+    } catch { /* ignore — CLI price is used if available */ }
     setPriceLoading(false)
   }
 
   const fetchAll = (net) => {
-    fetchPrice()
     if ((net || network) === 'mainnet') {
       setBtcSats(0)
       setVusdBal(0)
       setVaults([])
       setTxHistory([])
+      setPriceLoading(false)
+      fetchBtcPrice(false)
       return
     }
-    bridge.btcBalance().then(bal => {
-      let s = 0
-      if (typeof bal === "number") s = Math.round(bal * 100000000)
-      else if (bal?.output) s = Math.round(parseFloat(bal.output) * 100000000)
-      if (s >= 0) {
-        setBtcSats(s)
-        setCtxBtcSats(s)
-        const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
-        w.btcSats = s
-        localStorage.setItem("vultd-wallet", JSON.stringify(w))
+
+    // Single call to vusd.balance() gives us VUSD balance + BTC price (oracle) + BTC sats
+    vusd.balance().then(data => {
+      // BTC sats
+      if (data.btcSats >= 0) {
+        setBtcSats(data.btcSats)
+        setCtxBtcSats(data.btcSats)
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.btcSats = data.btcSats
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
       }
-    }).catch(() => {})
-    bridge.vusdBalance().then(data => {
-      const bal = typeof data === 'number' ? data : (data?.vusd_balance ?? data?.balance ?? 0)
-      setVusdBal(bal)
-      setCtxVusdBal(bal)
-      const w = JSON.parse(localStorage.getItem("vultd-wallet") || "{}")
-      w.vusdBalance = bal
-      localStorage.setItem("vultd-wallet", JSON.stringify(w))
-    }).catch(() => {})
-    bridge.readVaults().then(data => {
-      if (!data || typeof data !== 'object') return
-      const entries = Array.isArray(data) ? data : Object.entries(data)
-      if (entries.length === 0) return
-      // Normalise state: Rust can emit "Open" (no debt) or "Active" (debt outstanding).
-      // Both count as open vaults for display purposes.
-      const isOpenState = s => s === 'Open' || s === 'Active' || s === 'open' || s === 'active'
-      const normalized = entries.map(([id, v]) => ({
-        id: v.vault_id || id,
-        state: isOpenState(v.state) ? 'Open' : (v.state || 'Unknown'),
-        collateralSats: v.locked_btc || 0,
-        debt: typeof v.debt_vusd === 'number' && v.debt_vusd > 1e15 ? v.debt_vusd / 1e18 : (v.debt_vusd || 0),
-        // open_timestamp is set by Rust on vault creation; always a valid unix ts
-        openedAt: v.open_timestamp || v.openedAt || 0,
-        lastUpdated: v.last_updated || v.lastUpdated || 0,
-        openFeeSats: v.open_fee_paid_sats || 0,
-        ownerPubkey: v.owner_pubkey || '',
-        taprootTxid: v.taproot_txid || '',
-      }))
+      // VUSD balance
+      if (typeof data.vusdBalance === 'number') {
+        setVusdBal(data.vusdBalance)
+        setCtxVusdBal(data.vusdBalance)
+        const w = JSON.parse(localStorage.getItem('vultd-wallet') || '{}')
+        w.vusdBalance = data.vusdBalance
+        localStorage.setItem('vultd-wallet', JSON.stringify(w))
+      }
+      // BTC price from CLI oracle — preferred over Coinbase API
+      if (data.btcPrice && data.btcPrice > 0) {
+        setBtcPrice(data.btcPrice)
+        setCtxBtcPrice(data.btcPrice)
+        setPriceLoading(false)
+      } else {
+        // CLI price unavailable (not connected) — fall back to Coinbase
+        fetchBtcPrice(false)
+      }
+    }).catch(() => fetchBtcPrice(false))
+
+    // Vault list
+    vusd.listVaults().then(normalized => {
+      if (!Array.isArray(normalized) || normalized.length === 0) return
       setVaults(normalized)
-      // Build activity from vault events
+      // Build activity feed from vault events
       const activity = []
       normalized.forEach(v => {
-        if (v.openedAt) activity.push({ type:'vault_open', ts:v.openedAt, sats:v.collateralSats, vault:v.id })
-        if (v.debt > 0) activity.push({ type:'mint', ts:(v.lastUpdated || v.openedAt + 60), amount:v.debt, vault:v.id })
+        if (v.openedAt)  activity.push({ type: 'vault_open', ts: v.openedAt,  sats: v.collateralSats, vault: v.id })
+        if (v.debt > 0)  activity.push({ type: 'mint',       ts: v.lastUpdated || v.openedAt + 60, amount: v.debt, vault: v.id })
       })
-      activity.sort((a,b) => b.ts - a.ts)
+      activity.sort((a, b) => b.ts - a.ts)
       if (activity.length > 0) setTxHistory(activity)
+    }).catch(() => {})
+
+    // On-chain transfer history
+    bridge.listTransactions().then(txs => {
+      if (Array.isArray(txs) && txs.length > 0) {
+        // Merge with vault activity — bitcoin txs shown separately
+        setTxHistory(prev => {
+          const btcTxs = txs.map(tx => ({ ...tx, type: tx.category === 'send' ? 'btc_send' : 'btc_recv' }))
+          return [...prev.filter(t => t.type !== 'btc_send' && t.type !== 'btc_recv'), ...btcTxs]
+            .sort((a, b) => (b.ts || b.time || 0) - (a.ts || a.time || 0))
+            .slice(0, 20)
+        })
+      }
     }).catch(() => {})
   }
 
   useEffect(() => {
     fetchAll(network)
-    const interval = setInterval(() => fetchAll(network), 30000)
+    const interval = setInterval(() => fetchAll(network), 60000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [network]) // fetchAll is defined in this scope; wrapping in useCallback would cause dep cycle
+  }, [network])
 
-  const vusdBalance = vusdBal || wallet?.vusdBalance || 0
-  const btcUsd = btcPrice ? (btcSats / 100000000) * btcPrice : 0
-  const openVaults = vaults.filter(v => v.state === 'Open' || v.state === 'Active' || v.state === 'open' || v.state === 'active')
+  const vusdBalance   = vusdBal || wallet?.vusdBalance || 0
+  const btcUsd        = btcPrice ? (btcSats / 100000000) * btcPrice : 0
+  const isOpenState   = s => s === 'Open' || s === 'Active' || s === 'open' || s === 'active'
+  const openVaults    = vaults.filter(v => isOpenState(v.state))
   const vaultBackedUp = localStorage.getItem('vultd-vault-backed-up') === 'true'
-  const totalLocked = openVaults.reduce((a, v) => a + v.collateralSats, 0)
-  const totalDebt = openVaults.reduce((a, v) => a + v.debt, 0)
-  const btcAddr = wallet?.address || ''
-
-
-
-  const up = priceChange && parseFloat(priceChange) >= 0
+  const totalLocked   = openVaults.reduce((a, v) => a + (v.collateralSats || 0), 0)
+  const totalDebt     = openVaults.reduce((a, v) => a + (v.debt || 0), 0)
+  const btcAddr       = wallet?.address || ''
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 900 }}>
@@ -176,11 +181,10 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <span className="badge badge-warning">{isSignet ? 'Signet' : 'Mainnet'}</span>
-
         </div>
       </div>
 
-      {/* BTC Price */}
+      {/* BTC Price — sourced from CLI oracle */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--btc-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(247,147,26,0.2)' }}>
@@ -188,23 +192,17 @@ export default function Dashboard() {
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--muted-fg)', display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-              Bitcoin · Live Price <Tip text="Real-time BTC/USD price used for vault health calculations" />
+              Bitcoin · Oracle Price <Tip text="BTC/USD price from the VUSD on-chain oracle (7 signers)" />
             </div>
             <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>
-              {priceLoading ? <span className="skeleton" style={{ width: 120, height: 22, display: 'inline-block' }} /> : fmt(btcPrice)}
+              {priceLoading
+                ? <span className="skeleton" style={{ width: 120, height: 22, display: 'inline-block' }} />
+                : btcPrice ? fmt(btcPrice) : '—'}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {priceChange && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: up ? 'var(--success-dim)' : 'var(--danger-dim)' }}>
-              <TrendingUp size={12} style={{ color: up ? 'var(--success)' : 'var(--danger)', transform: up ? 'none' : 'scaleY(-1)' }} />
-              <span style={{ color: up ? 'var(--success)' : 'var(--danger)', fontSize: 12, fontWeight: 600, fontFamily: 'Geist Mono, monospace' }}>
-                {up ? '+' : ''}{priceChange}%
-              </span>
-            </div>
-          )}
-          <button onClick={fetchPrice} className="btn btn-secondary btn-sm">
+          <button onClick={() => fetchAll(network)} className="btn btn-secondary btn-sm" disabled={priceLoading}>
             <RefreshCw size={12} className={priceLoading ? 'spin' : ''} />
             {priceLoading ? 'Updating' : 'Refresh'}
           </button>
@@ -221,12 +219,7 @@ export default function Dashboard() {
         </div>
         {btcAddr ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              flex: 1, padding: '10px 12px', borderRadius: 8,
-              background: 'var(--bg)', border: '1px solid var(--border)',
-              fontFamily: 'Geist Mono, monospace', fontSize: 12,
-              color: 'var(--fg)', wordBreak: 'break-all', lineHeight: 1.6,
-            }}>
+            <div style={{ flex: 1, padding: '10px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', fontFamily: 'Geist Mono, monospace', fontSize: 12, color: 'var(--fg)', wordBreak: 'break-all', lineHeight: 1.6 }}>
               {btcAddr}
             </div>
             <CopyButton text={btcAddr} />
@@ -244,9 +237,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-
       {/* Balance grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
         {/* BTC + VUSD */}
         <div className="card">
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-fg)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
@@ -255,7 +248,7 @@ export default function Dashboard() {
           {btcSats === 0 && vusdBalance === 0 ? (
             <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--muted-fg)' }}>
               <div style={{ fontSize: 13, marginBottom: 4 }}>No balance yet</div>
-              <div style={{ fontSize: 12 }}>{isSignet ? 'Use the faucet above to get test sBTC' : 'Deposit BTC to your address above'}</div>
+              <div style={{ fontSize: 12 }}>{isSignet ? 'Connect signet node to load balance' : 'Deposit BTC to your address above'}</div>
             </div>
           ) : (
             <div style={{ fontFamily: 'Geist Mono, monospace', fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 14 }}>
@@ -264,7 +257,7 @@ export default function Dashboard() {
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
-              { icon: Bitcoin, color: 'var(--btc)', bg: 'var(--btc-dim)', label: isSignet ? 'sBTC' : 'BTC', sub: sats(btcSats), value: fmt(btcUsd), badge: isSignet ? 'SIGNET' : null, badgeClass: 'badge-warning' , asset: 'btc' },
+              { icon: Bitcoin, color: 'var(--btc)', bg: 'var(--btc-dim)', label: isSignet ? 'sBTC' : 'BTC', sub: sats(btcSats), value: fmt(btcUsd), badge: isSignet ? 'SIGNET' : null, badgeClass: 'badge-warning', asset: 'btc' },
               { icon: DollarSign, color: 'var(--fg-dim)', bg: 'var(--card3)', label: 'VUSD', sub: 'Private stablecoin', value: fmt(vusdBalance), badge: null, asset: 'vusd' },
             ].map(({ icon: Icon, color, bg, label, sub, value, badge, badgeClass, asset }) => (
               <div key={label} onClick={() => navigate('/transfer?asset=' + asset)} className="card2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
@@ -298,7 +291,12 @@ export default function Dashboard() {
             <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted-fg)' }}>
               <Lock size={28} style={{ marginBottom: 8, opacity: 0.25 }} />
               <div style={{ fontSize: 13, marginBottom: 4 }}>No open vaults</div>
-              <button onClick={() => navigate('/vaults')} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+              {vusdBalance > 0 && (
+                <div style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.5, padding: '0 8px' }}>
+                  You have {fmt(vusdBalance)} VUSD from a previous vault.<br/>Open a new vault to mint more.
+                </div>
+              )}
+              <button onClick={() => navigate('/vaults')} className="btn btn-secondary btn-sm" style={{ marginTop: 4 }}>
                 Open a vault
               </button>
             </div>
@@ -317,12 +315,20 @@ export default function Dashboard() {
                 <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Total debt</span>
                 <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 12, fontWeight: 500 }}>{network === 'mainnet' ? fmt(0) : fmt(totalDebt)}</span>
               </div>
-              {vaults.filter(v => v.cr && v.cr < 150).map(v => (
-                <div key={v.id} style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 10px', borderRadius:6, background:'var(--danger-dim)', border:'1px solid var(--danger)' }}>
-                  <AlertTriangle size={13} style={{color:'var(--danger)', flexShrink:0}} />
-                  <span style={{ fontSize:12, color:'var(--danger)' }}>Vault CR at {v.cr}% — add collateral or repay</span>
-                </div>
-              ))}
+              {openVaults.filter(v => {
+                const cr = v.collateralSats && v.debt > 0 && btcPrice
+                  ? Math.round((v.collateralSats / 1e8 * btcPrice) / v.debt * 100)
+                  : null
+                return cr && cr < 150
+              }).map(v => {
+                const cr = Math.round((v.collateralSats / 1e8 * btcPrice) / v.debt * 100)
+                return (
+                  <div key={v.id} style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 10px', borderRadius:6, background:'var(--danger-dim)', border:'1px solid var(--danger)' }}>
+                    <AlertTriangle size={13} style={{color:'var(--danger)', flexShrink:0}} />
+                    <span style={{ fontSize:12, color:'var(--danger)' }}>Vault CR at {cr}% — add collateral or repay</span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -351,19 +357,30 @@ export default function Dashboard() {
             <div style={{ fontSize:13, marginBottom:4 }}>No activity yet</div>
             <div style={{ fontSize:12 }}>Transactions will appear here</div>
           </div>
-        ) : txHistory.map((tx, i) => {
-          const isOpen = tx.type === 'vault_open'
-          const isMint = tx.type === 'mint'
-          const label = isOpen ? 'Vault Opened' : isMint ? 'VUSD Minted' : tx.spent ? 'Sent VUSD' : 'Received VUSD'
-          const color = isOpen ? 'var(--btc)' : 'var(--success)'
-          const bg = isOpen ? 'var(--warning-dim)' : 'var(--success-dim)'
-          const value = isOpen ? (tx.sats||0).toLocaleString()+' sats locked' : '+'+fmt(tx.amount||0)+' VUSD'
-          const ts = tx.ts || tx.received_at
+        ) : txHistory.slice(0, 12).map((tx, i) => {
+          const isOpen    = tx.type === 'vault_open'
+          const isMint    = tx.type === 'mint'
+          const isBtcSend = tx.type === 'btc_send'
+          const isBtcRecv = tx.type === 'btc_recv'
+          const label = isOpen    ? 'Vault Opened'
+                      : isMint    ? 'VUSD Minted'
+                      : isBtcSend ? 'Sent sBTC'
+                      : isBtcRecv ? 'Received sBTC'
+                      : tx.spent  ? 'Sent VUSD'
+                      : 'Received VUSD'
+          const color = isOpen ? 'var(--btc)' : isBtcSend ? 'var(--danger)' : 'var(--success)'
+          const bg    = isOpen ? 'var(--warning-dim)' : isBtcSend ? 'var(--danger-dim)' : 'var(--success-dim)'
+          const value = isOpen    ? (tx.sats||0).toLocaleString()+' sats locked'
+                      : isMint    ? '+'+fmt(tx.amount||0)+' VUSD'
+                      : isBtcSend ? '-'+Math.abs(tx.amount||0).toFixed(8)+' BTC'
+                      : isBtcRecv ? '+'+Math.abs(tx.amount||0).toFixed(8)+' BTC'
+                      : (tx.spent ? '-' : '+')+fmt(tx.amount||0)+' VUSD'
+          const ts = tx.ts || tx.time || tx.received_at
           return (
-            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom: i < txHistory.length-1 ? '1px solid var(--border)' : 'none' }}>
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom: i < Math.min(txHistory.length,12)-1 ? '1px solid var(--border)' : 'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <div style={{ width:32, height:32, borderRadius:'50%', background:bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  {isOpen ? <Lock size={14} style={{color:'var(--btc)'}} /> : <ArrowDownLeft size={14} style={{color:'var(--success)'}} />}
+                  {isOpen ? <Lock size={14} style={{color:'var(--btc)'}} /> : <ArrowDownLeft size={14} style={{color}} />}
                 </div>
                 <div>
                   <div style={{ fontWeight:500, fontSize:13 }}>{label}</div>
