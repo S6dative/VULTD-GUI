@@ -88,13 +88,13 @@ export const vusd = {
     if (isElectron) {
       return Promise.all([
         window.electron.btcBalance().catch(() => 0),
-        window.electron.vusdBalance().catch(() => ({})),
-      ]).then(([btc, v]) => ({
+        window.electron.readWallet().catch(() => ({})),
+        window.electron.vusdOracle().catch(() => ({})),
+      ]).then(([btc, wallet, oracle]) => ({
         btcSats:     Math.round((typeof btc === 'number' ? btc : 0) * 1e8),
-        // parseVusd in main.js normalises keys: "VUSD balance" → "vusd_balance"
-        vusdBalance: v?.vusd_balance ?? v?.balance      ?? 0,
-        btcPrice:    v?.btc_price   ?? v?.btcPrice      ?? null,
-        outputs:     v?.outputs_held ?? v?.outputs      ?? 0,
+        vusdBalance: wallet?.balance  ?? 0,
+        btcPrice:    oracle?.btc_price ?? oracle?.['btc/usd'] ?? oracle?.btcPrice ?? null,
+        outputs:     wallet?.outputs  ?? 0,
       }))
     }
     return apiGet('/balance')

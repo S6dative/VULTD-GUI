@@ -294,16 +294,11 @@ ipcMain.handle("read-wallet", async () => {
         return { balance: r.balance, outputs: r.outputs || 0, history: [] }
       }
     }
-    const bin = path.join(app.getAppPath(), "..", "vusd")
-    const r   = await run(bin, ["balance"], VENV)
-    const text = stripAnsi(r.output || "")
-    const balMatch = text.match(/VUSD balance\s*:\s*\$?([\d.,]+)/)
-    const outMatch = text.match(/Outputs held\s*:\s*(\d+)/)
-    return {
-      balance:  balMatch ? parseFloat(balMatch[1].replace(/,/g, "")) : 0,
-      outputs:  outMatch ? parseInt(outMatch[1])                       : 0,
-      history:  [],
-    }
+    const raw     = fs.readFileSync(WALLET_PATH, "utf8")
+    const outputs = JSON.parse(raw)
+    const unspent = Array.isArray(outputs) ? outputs.filter(o => !o.spent) : []
+    const totalRaw = unspent.reduce((sum, o) => sum + (typeof o.amount === "number" ? o.amount : 0), 0)
+    return { balance: parseFloat((totalRaw / 1e18).toFixed(2)), outputs: unspent.length, history: [] }
   } catch(e) { console.error("read-wallet:", e.message); return { balance: 0, outputs: 0, history: [] } }
 })
 
