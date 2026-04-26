@@ -44,11 +44,11 @@ function CopyButton({ text, size = 13 }) {
 }
 
 export default function Dashboard() {
-  const { network, wallet, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal } = useApp()
+  const { network, wallet, btcPrice: ctxBtcPrice, setBtcPrice: setCtxBtcPrice, btcSats: ctxBtcSats, setBtcSats: setCtxBtcSats, vusdBalance: ctxVusdBal, setVusdBalance: setCtxVusdBal } = useApp()
   const navigate  = useNavigate()
   const isSignet  = network === 'signet'
 
-  const [btcPrice,    setBtcPrice]    = useState(null)
+  const [btcPrice,    setBtcPrice]    = useState(ctxBtcPrice || null)
   const [priceLoading,setPriceLoading]= useState(true)
   const [btcSats,     setBtcSats]     = useState(ctxBtcSats || wallet?.btcSats || 0)
   const [vusdBal,     setVusdBal]     = useState(ctxVusdBal || 0)
@@ -81,6 +81,7 @@ export default function Dashboard() {
       if (!isNaN(price)) {
         setBtcPrice(price)
         setCtxBtcPrice(price)
+        localStorage.setItem('vultd-btcprice', String(price))
       }
     } catch { /* ignore — CLI price is used if available */ }
     setPriceLoading(false)
@@ -119,6 +120,7 @@ export default function Dashboard() {
       if (data.btcPrice && data.btcPrice > 0) {
         setBtcPrice(data.btcPrice)
         setCtxBtcPrice(data.btcPrice)
+        localStorage.setItem('vultd-btcprice', String(data.btcPrice))
         setPriceLoading(false)
       } else {
         // CLI price unavailable (not connected) — fall back to Coinbase
