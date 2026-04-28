@@ -4,7 +4,7 @@
 
 ## Pre-built Binaries
 
-Download the latest release from the [Releases page](https://github.com/S6dative/VULTD-GUI/releases).
+Download the latest release from the [vultd-releases page](https://github.com/S6dative/vultd-releases/releases/latest).
 
 | Platform | File | Notes |
 |----------|------|-------|
