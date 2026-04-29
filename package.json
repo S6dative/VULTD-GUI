@@ -1,7 +1,7 @@
 {
-  "name": "vultd-gui",
+  "name": "vultd",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
@@ -50,25 +50,81 @@
   "build": {
     "appId": "com.vultd.wallet",
     "productName": "VULTD",
+    "copyright": "Copyright \u00a9 2026 S6dative",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
     ],
     "linux": {
-      "target": "AppImage"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Finance",
+      "synopsis": "Bitcoin-backed private stablecoin wallet",
+      "description": "VULTD wallet for managing VUSD \u2014 a privacy-preserving Bitcoin-backed stablecoin on Lightning Network"
     },
     "win": {
-      "target": "dir",
-      "signAndEditExecutable": false
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VULTD",
+      "differentialPackage": false
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.finance"
     },
-    "icon": "build/icon.png"
+    "dmg": {
+      "title": "VULTD ${version}",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
-  "description": "Bitcoin-backed private stablecoin wallet",
-  "author": "VULTD Protocol"
+  "description": "VULTD \u2014 Bitcoin-backed private stablecoin wallet",
+  "author": "S6dative",
+  "copyright": "Copyright \u00a9 2026 S6dative"
 }
